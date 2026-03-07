@@ -1,0 +1,193 @@
+"use client";
+
+import Link from "next/link";
+import { useMemo, useState } from "react";
+
+type RosterRow = {
+  id: string;
+  clientUserId: string;
+  clientName: string;
+  coachId: string | null;
+  coachName: string;
+  goal: string;
+  equipment: string;
+  age: string;
+  height: string;
+  hasActiveProgram: boolean;
+  createdAt: string;
+};
+
+type CoachOption = { id: string; name: string };
+type TemplateOption = { id: string; name: string };
+
+export function RosterTable({
+  rows,
+  coaches,
+  templates,
+  isAdmin
+}: {
+  rows: RosterRow[];
+  coaches: CoachOption[];
+  templates: TemplateOption[];
+  isAdmin: boolean;
+}) {
+  const [coachSelections, setCoachSelections] = useState<Record<string, string>>(() =>
+    Object.fromEntries(rows.map((row) => [row.id, row.coachId ?? ""]))
+  );
+  const [templateSelections, setTemplateSelections] = useState<Record<string, string>>(() =>
+    Object.fromEntries(rows.map((row) => [row.id, templates[0]?.id ?? ""]))
+  );
+  const [assignedProgramIds, setAssignedProgramIds] = useState<Set<string>>(new Set(rows.filter((r) => r.hasActiveProgram).map((r) => r.id)));
+  const [status, setStatus] = useState<string | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
+
+  const coachNameById = useMemo(() => new Map(coaches.map((coach) => [coach.id, coach.name])), [coaches]);
+
+  const assignCoach = async (clientId: string) => {
+    setPending(`coach-${clientId}`);
+    setStatus(null);
+
+    const res = await fetch("/api/clients", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: clientId,
+        coach_id: coachSelections[clientId] || null
+      })
+    });
+
+    const payload = await res.json();
+    if (!res.ok) {
+      setStatus(payload.error || "Failed to assign coach");
+      setPending(null);
+      return;
+    }
+
+    setStatus("Coach assignment updated.");
+    setPending(null);
+  };
+
+  const assignProgram = async (clientId: string) => {
+    const templateId = templateSelections[clientId];
+    if (!templateId) {
+      setStatus("Select a template first.");
+      return;
+    }
+
+    setPending(`program-${clientId}`);
+    setStatus(null);
+
+    const res = await fetch("/api/clients/assign-template", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: clientId,
+        template_id: templateId
+      })
+    });
+
+    const payload = await res.json();
+    if (!res.ok) {
+      setStatus(payload.error || "Failed to assign program");
+      setPending(null);
+      return;
+    }
+
+    setAssignedProgramIds((prev) => new Set(prev).add(clientId));
+    setStatus("Program assigned.");
+    setPending(null);
+  };
+
+  return (
+    <div className="space-y-3">
+      {status && <p className="text-sm text-slate-700">{status}</p>}
+      <div className="card overflow-x-auto">
+        <table className="min-w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-slate-200 text-xs uppercase tracking-[0.14em] text-slate-500">
+              <th className="px-2 py-3 font-semibold">Client</th>
+              <th className="px-2 py-3 font-semibold">Coach</th>
+              <th className="px-2 py-3 font-semibold">Goal</th>
+              <th className="px-2 py-3 font-semibold">Equipment</th>
+              <th className="px-2 py-3 font-semibold">Age</th>
+              <th className="px-2 py-3 font-semibold">Height</th>
+              <th className="px-2 py-3 font-semibold">Program</th>
+              <th className="px-2 py-3 font-semibold">Created</th>
+              <th className="px-2 py-3 font-semibold">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const selectedCoachId = coachSelections[row.id] || "";
+              const selectedTemplateId = templateSelections[row.id] || "";
+              return (
+                <tr key={row.id} className="border-b border-slate-100 text-slate-700 align-top">
+                  <td className="px-2 py-3 font-semibold text-slate-900">{row.clientName}</td>
+                  <td className="px-2 py-3">{coachNameById.get(selectedCoachId) || row.coachName}</td>
+                  <td className="px-2 py-3">{row.goal}</td>
+                  <td className="px-2 py-3">{row.equipment}</td>
+                  <td className="px-2 py-3">{row.age}</td>
+                  <td className="px-2 py-3">{row.height}</td>
+                  <td className="px-2 py-3">
+                    <span className={`rounded-full px-2 py-1 text-xs font-semibold ${assignedProgramIds.has(row.id) ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
+                      {assignedProgramIds.has(row.id) ? "Assigned" : "Unassigned"}
+                    </span>
+                  </td>
+                  <td className="px-2 py-3">{row.createdAt}</td>
+                  <td className="px-2 py-3">
+                    <div className="flex min-w-[280px] flex-col gap-2">
+                      <Link href={`/messages?peer_id=${row.clientUserId}`} className="btn-secondary text-center">
+                        Message
+                      </Link>
+
+                      <div className="flex gap-2">
+                        <select
+                          className="input"
+                          value={selectedCoachId}
+                          onChange={(e) => setCoachSelections((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                          disabled={!isAdmin && row.coachId !== null}
+                        >
+                          <option value="">Unassigned</option>
+                          {coaches.map((coach) => (
+                            <option key={coach.id} value={coach.id}>
+                              {coach.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => assignCoach(row.id)}
+                          disabled={pending === `coach-${row.id}` || (!isAdmin && row.coachId !== null)}
+                        >
+                          {pending === `coach-${row.id}` ? "..." : "Set Coach"}
+                        </button>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <select
+                          className="input"
+                          value={selectedTemplateId}
+                          onChange={(e) => setTemplateSelections((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                        >
+                          <option value="">Select template</option>
+                          {templates.map((template) => (
+                            <option key={template.id} value={template.id}>
+                              {template.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button className="btn-primary" onClick={() => assignProgram(row.id)} disabled={pending === `program-${row.id}`}>
+                          {pending === `program-${row.id}` ? "..." : "Assign Program"}
+                        </button>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

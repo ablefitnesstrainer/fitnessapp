@@ -5,8 +5,18 @@ import { useEffect, useState } from "react";
 type Peer = { id: string; name: string; email: string; role: "admin" | "coach" | "client" };
 type Message = { id: string; sender_id: string; receiver_id: string; message: string; created_at: string };
 
-export function MessagingPanel({ currentUserId, peers, initialMessages }: { currentUserId: string; peers: Peer[]; initialMessages: Message[] }) {
-  const [selectedPeerId, setSelectedPeerId] = useState(peers[0]?.id ?? "");
+export function MessagingPanel({
+  currentUserId,
+  peers,
+  initialMessages,
+  initialSelectedPeerId
+}: {
+  currentUserId: string;
+  peers: Peer[];
+  initialMessages: Message[];
+  initialSelectedPeerId?: string;
+}) {
+  const [selectedPeerId, setSelectedPeerId] = useState(initialSelectedPeerId || peers[0]?.id || "");
   const [messages, setMessages] = useState(initialMessages);
   const [text, setText] = useState("");
   const [status, setStatus] = useState<string | null>(null);
@@ -59,7 +69,9 @@ export function MessagingPanel({ currentUserId, peers, initialMessages }: { curr
             onClick={() => setSelectedPeerId(peer.id)}
           >
             <p className="font-semibold text-slate-900">{peer.name}</p>
-            <p className="text-xs text-slate-500">{peer.role} · {peer.email}</p>
+            <p className="text-xs text-slate-500">
+              {peer.role} · {peer.email}
+            </p>
           </button>
         ))}
       </aside>

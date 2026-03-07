@@ -3,9 +3,10 @@ import { createClient } from "@/lib/supabase-server";
 import { displayNameFromIdentity } from "@/lib/display-name";
 import { getCurrentAppUser } from "@/services/auth-service";
 
-export default async function MessagesPage() {
+export default async function MessagesPage({ searchParams }: { searchParams?: { peer_id?: string } }) {
   const supabase = createClient();
   const currentUser = await getCurrentAppUser();
+  const requestedPeerId = searchParams?.peer_id;
 
   const peersQuery =
     currentUser.role === "client"
@@ -22,7 +23,9 @@ export default async function MessagesPage() {
     name: displayNameFromIdentity({ email: peer.email, fallbackId: peer.id })
   }));
 
-  const selectedPeer = normalizedPeers[0];
+  const selectedPeer =
+    (requestedPeerId ? normalizedPeers.find((peer) => peer.id === requestedPeerId) : null) || normalizedPeers[0];
+
   const { data: initialMessages, error: messagesError } = selectedPeer
     ? await supabase
         .from("messages")
@@ -38,7 +41,7 @@ export default async function MessagesPage() {
   return (
     <section className="space-y-4">
       <h1 className="text-2xl font-bold">Messaging</h1>
-      <MessagingPanel currentUserId={currentUser.id} peers={normalizedPeers} initialMessages={initialMessages || []} />
+      <MessagingPanel currentUserId={currentUser.id} peers={normalizedPeers} initialMessages={initialMessages || []} initialSelectedPeerId={selectedPeer?.id || ""} />
     </section>
   );
 }

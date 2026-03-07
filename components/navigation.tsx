@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import type { ReactNode } from "react";
+import { BrandLogo } from "@/components/brand-logo";
 
 type NavLink = {
   href: string;
@@ -19,6 +20,13 @@ const links: NavLink[] = [
     label: "Dashboard",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className={iconClass}><path d="M4 13h7V4H4v9zm9 7h7V4h-7v16zM4 20h7v-5H4v5z" stroke="currentColor" strokeWidth="1.7"/></svg>
+    )
+  },
+  {
+    href: "/clients",
+    label: "Clients",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}><path d="M6 8a3 3 0 116 0 3 3 0 01-6 0zm10 1a2.5 2.5 0 110-5 2.5 2.5 0 010 5zM3 19a6 6 0 0112 0m1 0c.4-2.3 2.4-4 4.8-4" stroke="currentColor" strokeWidth="1.7"/></svg>
     )
   },
   {
@@ -99,8 +107,13 @@ export function Navigation() {
   return (
     <aside className="sticky top-0 hidden h-screen w-72 shrink-0 border-r border-slate-200/80 bg-white/85 p-5 backdrop-blur lg:block">
       <div className="mb-6 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 p-4 text-white shadow-lg shadow-blue-200">
-        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-50">Able Fitness</p>
-        <h2 className="mt-1 text-2xl font-bold">Coach Console</h2>
+        <div className="flex items-center gap-3">
+          <BrandLogo size={42} className="border border-white/30" />
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-50">Able Fitness</p>
+            <h2 className="text-2xl font-bold">Coach Console</h2>
+          </div>
+        </div>
         <p className="mt-1 text-sm text-blue-50">Programs, progress, and accountability in one place.</p>
       </div>
 
