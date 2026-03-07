@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { env } from "@/lib/env";
 
 const allowPublicSignup = process.env.NEXT_PUBLIC_ALLOW_PUBLIC_SIGNUP === "true";
+const isMissingRelation = (code?: string) => code === "42P01";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -63,8 +64,8 @@ export async function updateSession(request: NextRequest) {
     if (appUser?.role === "client") {
       const { data: clientRow } = await supabase.from("clients").select("id").eq("user_id", user.id).maybeSingle();
       if (clientRow?.id) {
-        const { data: intakeRow } = await supabase.from("client_intakes").select("id").eq("client_id", clientRow.id).maybeSingle();
-        const intakeCompleted = Boolean(intakeRow?.id);
+        const { data: intakeRow, error: intakeError } = await supabase.from("client_intakes").select("id").eq("client_id", clientRow.id).maybeSingle();
+        const intakeCompleted = isMissingRelation(intakeError?.code) ? true : Boolean(intakeRow?.id);
 
         if (!intakeCompleted && !pathname.startsWith("/checkins")) {
           const redirectUrl = request.nextUrl.clone();

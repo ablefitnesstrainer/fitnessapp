@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 
+const isMissingSchemaField = (code?: string) => code === "42703" || code === "42P01";
+
 export async function POST(request: Request) {
   const supabase = createClient();
   const {
@@ -64,6 +66,26 @@ export async function POST(request: Request) {
     })
     .select("*")
     .single();
+
+  if (error && isMissingSchemaField(error.code)) {
+    const { data: legacyCheckin, error: legacyError } = await supabase
+      .from("checkins")
+      .insert({
+        client_id: body.client_id,
+        workouts_completed: body.workouts_completed,
+        energy: body.energy,
+        hunger: body.hunger,
+        sleep: body.sleep,
+        stress: body.stress,
+        adherence: body.adherence,
+        notes: body.notes
+      })
+      .select("*")
+      .single();
+
+    if (legacyError) return NextResponse.json({ error: legacyError.message }, { status: 400 });
+    return NextResponse.json({ checkin: legacyCheckin });
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 

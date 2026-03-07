@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase-server";
 import { displayNameFromIdentity } from "@/lib/display-name";
 import { getCurrentAppUser, getCurrentClientProfile } from "@/services/auth-service";
 
+const isMissingRelation = (code?: string) => code === "42P01";
+
 export default async function CheckinsPage() {
   const supabase = createClient();
   const appUser = await getCurrentAppUser();
@@ -20,16 +22,15 @@ export default async function CheckinsPage() {
     ]);
 
     if (checkinsRes.error) throw checkinsRes.error;
-    if (intakeRes.error) throw intakeRes.error;
+    if (intakeRes.error && !isMissingRelation(intakeRes.error.code)) throw intakeRes.error;
 
-    const intakeCompleted = Boolean(intakeRes.data?.id);
+    const intakeFeatureAvailable = !isMissingRelation(intakeRes.error?.code);
+    const intakeCompleted = intakeFeatureAvailable ? Boolean(intakeRes.data?.id) : true;
 
     return (
       <section className="space-y-4">
         <h1 className="text-2xl font-bold">Weekly Check-ins</h1>
-        {!intakeCompleted && (
-          <IntakeForm clientId={client.id} />
-        )}
+        {intakeFeatureAvailable && !intakeCompleted && <IntakeForm clientId={client.id} />}
         {intakeCompleted ? (
           <CheckinForm clientId={client.id} initialCheckins={checkinsRes.data || []} />
         ) : (
