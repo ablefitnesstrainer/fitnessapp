@@ -31,6 +31,7 @@ export function RosterTable({
   templates: TemplateOption[];
   isAdmin: boolean;
 }) {
+  const [localRows, setLocalRows] = useState(rows);
   const [coachSelections, setCoachSelections] = useState<Record<string, string>>(() =>
     Object.fromEntries(rows.map((row) => [row.id, row.coachId ?? ""]))
   );
@@ -64,6 +65,29 @@ export function RosterTable({
     }
 
     setStatus("Coach assignment updated.");
+    setPending(null);
+  };
+
+  const deleteClient = async (clientId: string, clientName: string) => {
+    const confirmed = window.confirm(`Delete ${clientName} from roster? This removes their client profile and related logs.`);
+    if (!confirmed) return;
+
+    setPending(`delete-${clientId}`);
+    setStatus(null);
+
+    const res = await fetch(`/api/clients?client_id=${clientId}`, {
+      method: "DELETE"
+    });
+
+    const payload = await res.json();
+    if (!res.ok) {
+      setStatus(payload.error || "Failed to delete client");
+      setPending(null);
+      return;
+    }
+
+    setLocalRows((prev) => prev.filter((row) => row.id !== clientId));
+    setStatus("Client deleted.");
     setPending(null);
   };
 
@@ -117,7 +141,7 @@ export function RosterTable({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => {
+            {localRows.map((row) => {
               const selectedCoachId = coachSelections[row.id] || "";
               const selectedTemplateId = templateSelections[row.id] || "";
               return (
@@ -180,6 +204,10 @@ export function RosterTable({
                           {pending === `program-${row.id}` ? "..." : "Assign Program"}
                         </button>
                       </div>
+
+                      <button className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100" onClick={() => deleteClient(row.id, row.clientName)} disabled={pending === `delete-${row.id}`}>
+                        {pending === `delete-${row.id}` ? "Deleting..." : "Delete Client"}
+                      </button>
                     </div>
                   </td>
                 </tr>

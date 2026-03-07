@@ -26,6 +26,19 @@ export function ProfileForm({ initialFullName, email }: { initialFullName: strin
       return;
     }
 
+    const syncRes = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ full_name: fullName.trim() })
+    });
+
+    if (!syncRes.ok) {
+      const payload = await syncRes.json();
+      setStatus(payload.error || "Profile saved in auth but failed to sync roster name.");
+      setLoading(false);
+      return;
+    }
+
     setStatus("Profile updated. Refreshing...");
     setTimeout(() => {
       window.location.reload();

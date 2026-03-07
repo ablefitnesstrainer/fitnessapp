@@ -31,8 +31,8 @@ export default async function ClientsPage() {
 
   const coachesQuery =
     currentUser.role === "admin"
-      ? supabase.from("app_users").select("id,email,role").in("role", ["coach", "admin"])
-      : supabase.from("app_users").select("id,email,role").eq("id", currentUser.id);
+      ? supabase.from("app_users").select("id,email,full_name,role").in("role", ["coach", "admin"])
+      : supabase.from("app_users").select("id,email,full_name,role").eq("id", currentUser.id);
 
   const templatesQuery =
     currentUser.role === "admin"
@@ -40,7 +40,7 @@ export default async function ClientsPage() {
       : supabase.from("program_templates").select("id,name").eq("coach_id", currentUser.id).order("name");
 
   const [{ data: users, error: usersError }, { data: assignments, error: assignmentsError }, { data: coaches, error: coachesError }, { data: templates, error: templatesError }] = await Promise.all([
-    idsForLookup.length ? supabase.from("app_users").select("id,email").in("id", idsForLookup) : Promise.resolve({ data: [], error: null }),
+    idsForLookup.length ? supabase.from("app_users").select("id,email,full_name,role").in("id", idsForLookup) : Promise.resolve({ data: [], error: null }),
     (clients || []).length
       ? supabase.from("program_assignments").select("client_id,active").in("client_id", (clients || []).map((client) => client.id)).eq("active", true)
       : Promise.resolve({ data: [], error: null }),
@@ -56,16 +56,21 @@ export default async function ClientsPage() {
   const userMap = new Map((users || []).map((user) => [user.id, user]));
   const assignedClientIds = new Set((assignments || []).map((assignment) => assignment.client_id));
 
-  const rows = (clients || []).map((client) => {
+  const rows = (clients || [])
+    .filter((client) => {
+      const clientUser = userMap.get(client.user_id);
+      return clientUser?.role === "client";
+    })
+    .map((client) => {
     const clientUser = userMap.get(client.user_id);
     const coachUser = client.coach_id ? userMap.get(client.coach_id) : null;
 
     return {
       id: client.id,
       clientUserId: client.user_id,
-      clientName: displayNameFromIdentity({ email: clientUser?.email, fallbackId: client.user_id }),
+      clientName: displayNameFromIdentity({ fullName: clientUser?.full_name, email: clientUser?.email, fallbackId: client.user_id }),
       coachId: client.coach_id,
-      coachName: coachUser ? displayNameFromIdentity({ email: coachUser.email, fallbackId: coachUser.id }) : "Unassigned",
+      coachName: coachUser ? displayNameFromIdentity({ fullName: coachUser.full_name, email: coachUser.email, fallbackId: coachUser.id }) : "Unassigned",
       goal: client.goal || "-",
       equipment: client.equipment || "-",
       age: client.age ? String(client.age) : "-",
@@ -77,7 +82,7 @@ export default async function ClientsPage() {
 
   const coachOptions = (coaches || []).map((coach) => ({
     id: coach.id,
-    name: displayNameFromIdentity({ email: coach.email, fallbackId: coach.id })
+    name: displayNameFromIdentity({ fullName: coach.full_name, email: coach.email, fallbackId: coach.id })
   }));
 
   const templateOptions = (templates || []).map((template) => ({ id: template.id, name: template.name }));
