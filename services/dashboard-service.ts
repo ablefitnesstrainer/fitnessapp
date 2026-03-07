@@ -29,7 +29,7 @@ export async function getDashboardData() {
   }
 
   const [clientsRes, templatesRes, checkinsRes] = await Promise.all([
-    supabase.from("clients").select("id", { count: "exact", head: true }),
+    supabase.from("app_users").select("id", { count: "exact", head: true }).eq("role", "client"),
     supabase.from("program_templates").select("id", { count: "exact", head: true }),
     supabase.from("checkins").select("id,created_at,adherence").order("created_at", { ascending: true }).limit(100)
   ]);
