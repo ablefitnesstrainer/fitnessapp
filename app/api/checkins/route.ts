@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 
-const isMissingSchemaField = (code?: string) => code === "42703" || code === "42P01";
+const isMissingSchemaField = (code?: string) => code === "42703" || code === "42P01" || code === "PGRST204" || code === "PGRST205";
 
 export async function POST(request: Request) {
   const supabase = createClient();

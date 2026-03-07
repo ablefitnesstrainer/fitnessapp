@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { env } from "@/lib/env";
 
 const allowPublicSignup = process.env.NEXT_PUBLIC_ALLOW_PUBLIC_SIGNUP === "true";
-const isMissingRelation = (code?: string) => code === "42P01";
+const isMissingRelation = (code?: string) => code === "42P01" || code === "PGRST205";
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });

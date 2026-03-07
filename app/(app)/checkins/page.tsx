@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase-server";
 import { displayNameFromIdentity } from "@/lib/display-name";
 import { getCurrentAppUser, getCurrentClientProfile } from "@/services/auth-service";
 
-const isMissingRelation = (code?: string) => code === "42P01";
+const isMissingRelation = (code?: string) => code === "42P01" || code === "PGRST205";
 
 export default async function CheckinsPage() {
   const supabase = createClient();
