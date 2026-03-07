@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --bg: #f4f8ff;
+  --bg-accent: #dff0ff;
+  --surface: #ffffff;
+  --surface-soft: #f7fafc;
+  --stroke: #dbe4f0;
+  --text: #0f1f34;
+  --muted: #5a6c85;
+  --primary: #0f6adf;
+  --primary-strong: #0a4fa9;
+  --success: #1f9d65;
+  --danger: #cc3b4a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Avenir Next", "Montserrat", "Segoe UI", sans-serif;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 10% -20%, var(--bg-accent) 0%, transparent 45%),
+    radial-gradient(circle at 90% 10%, #eef4ff 0%, transparent 35%),
+    linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: "Sora", "Futura", "Trebuchet MS", sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.page {
+  @apply mx-auto w-full max-w-7xl;
+}
+
+.card {
+  @apply rounded-2xl border p-5;
+  border-color: var(--stroke);
+  background: linear-gradient(180deg, var(--surface) 0%, #fcfdff 100%);
+  box-shadow: 0 18px 50px -32px rgba(17, 36, 64, 0.35);
+}
+
+.card-muted {
+  @apply rounded-2xl border p-4;
+  border-color: var(--stroke);
+  background: var(--surface-soft);
+}
+
+.btn-primary {
+  @apply rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition;
+  background: linear-gradient(135deg, var(--primary) 0%, #247ff1 100%);
+  box-shadow: 0 12px 26px -14px rgba(15, 106, 223, 0.8);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--primary-strong) 0%, #1c69cb 100%);
+}
+
+.btn-secondary {
+  @apply rounded-xl border px-4 py-2.5 text-sm font-semibold transition;
+  border-color: var(--stroke);
+  background: #fff;
+  color: var(--text);
+}
+
+.btn-secondary:hover {
+  background: #f3f7fd;
+}
+
+.input {
+  @apply w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm outline-none transition;
+  border-color: var(--stroke);
+}
+
+.input:focus {
+  border-color: #8cb6eb;
+  box-shadow: 0 0 0 4px rgba(15, 106, 223, 0.12);
+}
+
+.label {
+  @apply mb-1.5 block text-sm font-semibold;
+  color: var(--muted);
+}
+
+.status-ok {
+  color: var(--success);
+}
+
+.status-error {
+  color: var(--danger);
+}
+
+::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c9d6e9;
+  border-radius: 999px;
+}
