@@ -10,8 +10,8 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
 
   const peersQuery =
     currentUser.role === "client"
-      ? supabase.from("app_users").select("id,email,role").in("role", ["coach", "admin"])
-      : supabase.from("app_users").select("id,email,role").neq("id", currentUser.id);
+      ? supabase.from("app_users").select("id,email,full_name,role").in("role", ["coach", "admin"])
+      : supabase.from("app_users").select("id,email,full_name,role").neq("id", currentUser.id);
 
   const { data: peers, error: peersError } = await peersQuery;
   if (peersError) {
@@ -20,7 +20,7 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
 
   const normalizedPeers = (peers || []).map((peer) => ({
     ...peer,
-    name: displayNameFromIdentity({ email: peer.email, fallbackId: peer.id })
+    name: displayNameFromIdentity({ fullName: peer.full_name, email: peer.email, fallbackId: peer.id })
   }));
 
   const selectedPeer =
