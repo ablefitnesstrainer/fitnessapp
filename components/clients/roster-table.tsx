@@ -19,9 +19,16 @@ type RosterRow = {
   intakeSummary: {
     primaryGoal: string;
     trainingExperience: string;
+    injuriesOrLimitations: string;
+    equipmentAccess: string;
+    daysPerWeek: number | null;
+    sessionLengthMinutes: number | null;
+    nutritionPreferences: string;
+    dietaryRestrictions: string;
     stressLevel: number | null;
     sleepHours: number | null;
     readinessToChange: number | null;
+    supportNotes: string;
     updatedAt: string;
   } | null;
 };
@@ -169,14 +176,21 @@ export function RosterTable({
                   </td>
                   <td className="px-2 py-3">
                     {row.intakeSubmitted && row.intakeSummary ? (
-                      <details className="max-w-[220px]">
+                      <details className="max-w-[320px]">
                         <summary className="cursor-pointer text-xs font-semibold text-emerald-700">Submitted</summary>
-                        <div className="mt-2 rounded-lg bg-slate-50 p-2 text-xs text-slate-700">
-                          <p><span className="font-semibold">Goal:</span> {row.intakeSummary.primaryGoal}</p>
-                          <p><span className="font-semibold">Experience:</span> {row.intakeSummary.trainingExperience}</p>
+                        <div className="mt-2 max-h-64 space-y-1 overflow-y-auto rounded-lg bg-slate-50 p-2 text-xs text-slate-700">
+                          <p><span className="font-semibold">Primary goal:</span> {row.intakeSummary.primaryGoal}</p>
+                          <p><span className="font-semibold">Training experience:</span> {row.intakeSummary.trainingExperience}</p>
+                          <p><span className="font-semibold">Injuries/limitations:</span> {row.intakeSummary.injuriesOrLimitations}</p>
+                          <p><span className="font-semibold">Equipment access:</span> {row.intakeSummary.equipmentAccess}</p>
+                          <p><span className="font-semibold">Days/week:</span> {row.intakeSummary.daysPerWeek ?? "-"}</p>
+                          <p><span className="font-semibold">Session length:</span> {row.intakeSummary.sessionLengthMinutes ?? "-"} min</p>
+                          <p><span className="font-semibold">Nutrition preferences:</span> {row.intakeSummary.nutritionPreferences}</p>
+                          <p><span className="font-semibold">Dietary restrictions:</span> {row.intakeSummary.dietaryRestrictions}</p>
                           <p><span className="font-semibold">Stress:</span> {row.intakeSummary.stressLevel ?? "-"}/10</p>
                           <p><span className="font-semibold">Sleep:</span> {row.intakeSummary.sleepHours ?? "-"}</p>
                           <p><span className="font-semibold">Readiness:</span> {row.intakeSummary.readinessToChange ?? "-"}/10</p>
+                          <p><span className="font-semibold">Support notes:</span> {row.intakeSummary.supportNotes}</p>
                           <p><span className="font-semibold">Updated:</span> {row.intakeSummary.updatedAt}</p>
                         </div>
                       </details>
