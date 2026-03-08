@@ -60,7 +60,7 @@ export function AuthForm({ mode }: Props) {
       <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Able Fitness</p>
       <h1 className="mt-2 text-3xl font-bold text-slate-900">{mode === "login" ? "Welcome back" : "Create your account"}</h1>
       <p className="mt-1 text-sm text-slate-600">
-        {mode === "login" ? "Log in to access your coaching workspace." : "Start with a client account and get your dashboard live."}
+        {mode === "login" ? "Log in to access your training dashboard." : "Create your account to start your training plan."}
       </p>
 
       <form className="mt-6 space-y-4" onSubmit={onSubmit}>
