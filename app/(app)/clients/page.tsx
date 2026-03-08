@@ -53,8 +53,19 @@ export default async function ClientsPage() {
   if (coachesError) throw coachesError;
   if (templatesError) throw templatesError;
 
+  const { data: intakes, error: intakesError } =
+    (clients || []).length > 0
+      ? await supabase
+          .from("client_intakes")
+          .select("client_id,primary_goal,training_experience,updated_at,stress_level,sleep_hours,readiness_to_change")
+          .in("client_id", (clients || []).map((client) => client.id))
+      : { data: [], error: null };
+
+  if (intakesError && intakesError.code !== "42P01" && intakesError.code !== "PGRST205") throw intakesError;
+
   const userMap = new Map((users || []).map((user) => [user.id, user]));
   const assignedClientIds = new Set((assignments || []).map((assignment) => assignment.client_id));
+  const intakeByClientId = new Map((intakes || []).map((intake) => [intake.client_id, intake]));
 
   const rows = (clients || [])
     .filter((client) => {
@@ -64,6 +75,7 @@ export default async function ClientsPage() {
     .map((client) => {
     const clientUser = userMap.get(client.user_id);
     const coachUser = client.coach_id ? userMap.get(client.coach_id) : null;
+    const intake = intakeByClientId.get(client.id);
 
     return {
       id: client.id,
@@ -76,7 +88,18 @@ export default async function ClientsPage() {
       age: client.age ? String(client.age) : "-",
       height: client.height ? String(client.height) : "-",
       hasActiveProgram: assignedClientIds.has(client.id),
-      createdAt: new Date(client.created_at).toLocaleDateString()
+      createdAt: new Date(client.created_at).toLocaleDateString(),
+      intakeSubmitted: Boolean(intake),
+      intakeSummary: intake
+        ? {
+            primaryGoal: intake.primary_goal || "-",
+            trainingExperience: intake.training_experience || "-",
+            stressLevel: intake.stress_level ?? null,
+            sleepHours: intake.sleep_hours ?? null,
+            readinessToChange: intake.readiness_to_change ?? null,
+            updatedAt: intake.updated_at ? new Date(intake.updated_at).toLocaleDateString() : "-"
+          }
+        : null
     };
   });
 

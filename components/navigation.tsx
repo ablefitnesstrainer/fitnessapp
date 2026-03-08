@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import type { ReactNode } from "react";
 import { BrandLogo } from "@/components/brand-logo";
+import type { Role } from "@/types/db";
 
 type NavLink = {
   href: string;
@@ -101,8 +102,13 @@ const links: NavLink[] = [
   }
 ];
 
-export function Navigation() {
+export function Navigation({ role }: { role: Role }) {
   const pathname = usePathname();
+  const title = role === "client" ? "Client Portal" : role === "admin" ? "Admin Console" : "Coach Console";
+  const subtitle =
+    role === "client"
+      ? "Training, nutrition, and check-ins in one place."
+      : "Programs, progress, and accountability in one place.";
 
   return (
     <aside className="sticky top-0 hidden h-screen w-72 shrink-0 border-r border-slate-200/80 bg-white/85 p-5 backdrop-blur lg:block">
@@ -111,10 +117,10 @@ export function Navigation() {
           <BrandLogo size={42} className="border border-white/30" />
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-50">Able Fitness</p>
-            <h2 className="text-2xl font-bold">Coach Console</h2>
+            <h2 className="text-2xl font-bold">{title}</h2>
           </div>
         </div>
-        <p className="mt-1 text-sm text-blue-50">Programs, progress, and accountability in one place.</p>
+        <p className="mt-1 text-sm text-blue-50">{subtitle}</p>
       </div>
 
       <nav className="space-y-1.5">

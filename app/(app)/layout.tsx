@@ -15,7 +15,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen lg:flex">
-      <Navigation />
+      <Navigation role={appUser.role} />
       <main className="flex-1 p-4 sm:p-6 lg:p-8">
         <div className="page">
           <header className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-white/80 px-4 py-3 shadow-sm backdrop-blur">

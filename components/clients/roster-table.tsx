@@ -15,6 +15,15 @@ type RosterRow = {
   height: string;
   hasActiveProgram: boolean;
   createdAt: string;
+  intakeSubmitted: boolean;
+  intakeSummary: {
+    primaryGoal: string;
+    trainingExperience: string;
+    stressLevel: number | null;
+    sleepHours: number | null;
+    readinessToChange: number | null;
+    updatedAt: string;
+  } | null;
 };
 
 type CoachOption = { id: string; name: string };
@@ -136,6 +145,7 @@ export function RosterTable({
               <th className="px-2 py-3 font-semibold">Age</th>
               <th className="px-2 py-3 font-semibold">Height</th>
               <th className="px-2 py-3 font-semibold">Program</th>
+              <th className="px-2 py-3 font-semibold">Intake</th>
               <th className="px-2 py-3 font-semibold">Created</th>
               <th className="px-2 py-3 font-semibold">Actions</th>
             </tr>
@@ -156,6 +166,23 @@ export function RosterTable({
                     <span className={`rounded-full px-2 py-1 text-xs font-semibold ${assignedProgramIds.has(row.id) ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
                       {assignedProgramIds.has(row.id) ? "Assigned" : "Unassigned"}
                     </span>
+                  </td>
+                  <td className="px-2 py-3">
+                    {row.intakeSubmitted && row.intakeSummary ? (
+                      <details className="max-w-[220px]">
+                        <summary className="cursor-pointer text-xs font-semibold text-emerald-700">Submitted</summary>
+                        <div className="mt-2 rounded-lg bg-slate-50 p-2 text-xs text-slate-700">
+                          <p><span className="font-semibold">Goal:</span> {row.intakeSummary.primaryGoal}</p>
+                          <p><span className="font-semibold">Experience:</span> {row.intakeSummary.trainingExperience}</p>
+                          <p><span className="font-semibold">Stress:</span> {row.intakeSummary.stressLevel ?? "-"}/10</p>
+                          <p><span className="font-semibold">Sleep:</span> {row.intakeSummary.sleepHours ?? "-"}</p>
+                          <p><span className="font-semibold">Readiness:</span> {row.intakeSummary.readinessToChange ?? "-"}/10</p>
+                          <p><span className="font-semibold">Updated:</span> {row.intakeSummary.updatedAt}</p>
+                        </div>
+                      </details>
+                    ) : (
+                      <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Not submitted</span>
+                    )}
                   </td>
                   <td className="px-2 py-3">{row.createdAt}</td>
                   <td className="px-2 py-3">
