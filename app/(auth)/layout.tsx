@@ -8,7 +8,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="hidden bg-gradient-to-br from-slate-900 via-blue-900 to-cyan-700 p-10 text-white lg:block">
           <div className="mb-5 flex justify-center">
             <Image
-              src="/able-logo.png"
+              src="/able-logo-official.png"
               alt="Able Fitness"
               width={170}
               height={170}

@@ -4,9 +4,9 @@ export const metadata = {
   title: "Able Fitness Coaching App",
   description: "Fitness coaching platform",
   icons: {
-    icon: "/able-logo.png",
-    shortcut: "/able-logo.png",
-    apple: "/able-logo.png"
+    icon: "/able-logo-official.png",
+    shortcut: "/able-logo-official.png",
+    apple: "/able-logo-official.png"
   }
 };
 

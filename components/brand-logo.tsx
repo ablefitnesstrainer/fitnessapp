@@ -3,7 +3,7 @@ import Image from "next/image";
 export function BrandLogo({ size = 44, className = "" }: { size?: number; className?: string }) {
   return (
     <Image
-      src="/able-logo.svg"
+      src="/able-logo-official.png"
       alt="Able Fitness"
       width={size}
       height={size}
