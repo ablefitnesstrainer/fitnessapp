@@ -31,6 +31,10 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
+  const isStaticAsset = pathname.startsWith("/_next") || pathname === "/favicon.ico" || /\.[a-zA-Z0-9]+$/.test(pathname);
+  if (isStaticAsset) {
+    return supabaseResponse;
+  }
   const isPublicAuthPath =
     pathname.startsWith("/login") ||
     pathname.startsWith("/register") ||
