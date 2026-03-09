@@ -14,6 +14,9 @@ type RosterRow = {
   age: string;
   height: string;
   weight: string;
+  lastCheckinAt: string;
+  adherencePercent: number | null;
+  adherenceTrend: "up" | "down" | "flat" | "na";
   hasActiveProgram: boolean;
   createdAt: string;
   intakeSubmitted: boolean;
@@ -153,6 +156,8 @@ export function RosterTable({
               <th className="px-2 py-3 font-semibold">Age</th>
               <th className="px-2 py-3 font-semibold">Height</th>
               <th className="px-2 py-3 font-semibold">Weight</th>
+              <th className="px-2 py-3 font-semibold">Last Check-in</th>
+              <th className="px-2 py-3 font-semibold">Adherence Trend</th>
               <th className="px-2 py-3 font-semibold">Program</th>
               <th className="px-2 py-3 font-semibold">Intake</th>
               <th className="px-2 py-3 font-semibold">Created</th>
@@ -172,6 +177,24 @@ export function RosterTable({
                   <td className="px-2 py-3">{row.age}</td>
                   <td className="px-2 py-3">{row.height}</td>
                   <td className="px-2 py-3">{row.weight}</td>
+                  <td className="px-2 py-3">{row.lastCheckinAt}</td>
+                  <td className="px-2 py-3">
+                    {row.adherencePercent === null ? (
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">No data</span>
+                    ) : (
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                          row.adherenceTrend === "up"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : row.adherenceTrend === "down"
+                              ? "bg-rose-100 text-rose-700"
+                              : "bg-amber-100 text-amber-700"
+                        }`}
+                      >
+                        {row.adherenceTrend === "up" ? "↑" : row.adherenceTrend === "down" ? "↓" : "→"} {row.adherencePercent}%
+                      </span>
+                    )}
+                  </td>
                   <td className="px-2 py-3">
                     <span className={`rounded-full px-2 py-1 text-xs font-semibold ${assignedProgramIds.has(row.id) ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
                       {assignedProgramIds.has(row.id) ? "Assigned" : "Unassigned"}

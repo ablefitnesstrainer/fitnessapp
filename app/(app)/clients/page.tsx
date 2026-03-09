@@ -39,7 +39,7 @@ export default async function ClientsPage() {
       ? supabase.from("program_templates").select("id,name").order("name")
       : supabase.from("program_templates").select("id,name").eq("coach_id", currentUser.id).order("name");
 
-  const [{ data: users, error: usersError }, { data: assignments, error: assignmentsError }, { data: coaches, error: coachesError }, { data: templates, error: templatesError }, { data: bodyweights, error: bodyweightsError }] = await Promise.all([
+  const [{ data: users, error: usersError }, { data: assignments, error: assignmentsError }, { data: coaches, error: coachesError }, { data: templates, error: templatesError }, { data: bodyweights, error: bodyweightsError }, { data: checkins, error: checkinsError }] = await Promise.all([
     idsForLookup.length ? supabase.from("app_users").select("id,email,full_name,role").in("id", idsForLookup) : Promise.resolve({ data: [], error: null }),
     (clients || []).length
       ? supabase.from("program_assignments").select("client_id,active").in("client_id", (clients || []).map((client) => client.id)).eq("active", true)
@@ -48,6 +48,13 @@ export default async function ClientsPage() {
     templatesQuery,
     (clients || []).length
       ? supabase.from("bodyweight_logs").select("client_id,weight,created_at").in("client_id", (clients || []).map((client) => client.id)).order("created_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    (clients || []).length
+      ? supabase
+          .from("checkins")
+          .select("client_id,created_at,adherence,nutrition_adherence_percent")
+          .in("client_id", (clients || []).map((client) => client.id))
+          .order("created_at", { ascending: false })
       : Promise.resolve({ data: [], error: null })
   ]);
 
@@ -56,6 +63,7 @@ export default async function ClientsPage() {
   if (coachesError) throw coachesError;
   if (templatesError) throw templatesError;
   if (bodyweightsError) throw bodyweightsError;
+  if (checkinsError) throw checkinsError;
 
   const { data: intakes, error: intakesError } =
     (clients || []).length > 0
@@ -73,10 +81,16 @@ export default async function ClientsPage() {
   const assignedClientIds = new Set((assignments || []).map((assignment) => assignment.client_id));
   const intakeByClientId = new Map((intakes || []).map((intake) => [intake.client_id, intake]));
   const latestWeightByClientId = new Map<string, number>();
+  const checkinsByClientId = new Map<string, { created_at: string; adherence: number | null; nutrition_adherence_percent: number | null }[]>();
   for (const entry of bodyweights || []) {
     if (!latestWeightByClientId.has(entry.client_id)) {
       latestWeightByClientId.set(entry.client_id, Number(entry.weight));
     }
+  }
+  for (const entry of checkins || []) {
+    const list = checkinsByClientId.get(entry.client_id) || [];
+    list.push(entry);
+    checkinsByClientId.set(entry.client_id, list);
   }
 
   const rows = (clients || [])
@@ -88,6 +102,23 @@ export default async function ClientsPage() {
     const clientUser = userMap.get(client.user_id);
     const coachUser = client.coach_id ? userMap.get(client.coach_id) : null;
     const intake = intakeByClientId.get(client.id);
+    const clientCheckins = checkinsByClientId.get(client.id) || [];
+    const latestCheckin = clientCheckins[0];
+    const latestAdherence = latestCheckin
+      ? (latestCheckin.nutrition_adherence_percent ?? latestCheckin.adherence ?? null)
+      : null;
+    const previousAdherence =
+      clientCheckins.length > 1
+        ? (clientCheckins[1].nutrition_adherence_percent ?? clientCheckins[1].adherence ?? null)
+        : null;
+    const adherenceTrend: "up" | "down" | "flat" | "na" =
+      latestAdherence === null || previousAdherence === null
+        ? "na"
+        : latestAdherence > previousAdherence
+          ? "up"
+          : latestAdherence < previousAdherence
+            ? "down"
+            : "flat";
 
     return {
       id: client.id,
@@ -100,6 +131,9 @@ export default async function ClientsPage() {
       age: client.age ? String(client.age) : "-",
       height: client.height ? String(client.height) : "-",
       weight: latestWeightByClientId.has(client.id) ? String(latestWeightByClientId.get(client.id)) : "-",
+      lastCheckinAt: latestCheckin ? new Date(latestCheckin.created_at).toLocaleDateString() : "-",
+      adherencePercent: latestAdherence,
+      adherenceTrend,
       hasActiveProgram: assignedClientIds.has(client.id),
       createdAt: new Date(client.created_at).toLocaleDateString(),
       intakeSubmitted: Boolean(intake),
