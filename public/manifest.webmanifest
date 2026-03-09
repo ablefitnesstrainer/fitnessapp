@@ -1,0 +1,31 @@
+{
+  "name": "Able Fitness Coaching",
+  "short_name": "Able Fitness",
+  "description": "Track workouts, nutrition, and coaching progress.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f8ff",
+  "theme_color": "#0f6adf",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/able-logo-official.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/able-logo-official.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/able-logo-official.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
