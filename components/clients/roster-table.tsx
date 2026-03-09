@@ -19,7 +19,6 @@ type RosterRow = {
   intakeSubmitted: boolean;
   intakeSummary: {
     primaryGoal: string;
-    sexAtBirth: string;
     trainingExperience: string;
     injuriesOrLimitations: string;
     equipmentAccess: string;
@@ -184,7 +183,6 @@ export function RosterTable({
                         <summary className="cursor-pointer text-xs font-semibold text-emerald-700">Submitted</summary>
                         <div className="mt-2 max-h-64 space-y-1 overflow-y-auto rounded-lg bg-slate-50 p-2 text-xs text-slate-700">
                           <p><span className="font-semibold">Primary goal:</span> {row.intakeSummary.primaryGoal}</p>
-                          <p><span className="font-semibold">Sex at birth:</span> {row.intakeSummary.sexAtBirth}</p>
                           <p><span className="font-semibold">Training experience:</span> {row.intakeSummary.trainingExperience}</p>
                           <p><span className="font-semibold">Injuries/limitations:</span> {row.intakeSummary.injuriesOrLimitations}</p>
                           <p><span className="font-semibold">Equipment access:</span> {row.intakeSummary.equipmentAccess}</p>

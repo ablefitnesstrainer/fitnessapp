@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { calculateMifflinStJeorTargets } from "@/lib/macro-calculator";
 
+const isMissingSchemaField = (code?: string) => code === "42703" || code === "PGRST204";
+
 export async function POST(request: Request) {
   const supabase = createClient();
   const {
@@ -30,29 +32,45 @@ export async function POST(request: Request) {
     support_notes: string;
   };
 
-  const { data: intake, error } = await supabase
-    .from("client_intakes")
-    .upsert(
-      {
-        client_id: body.client_id,
-        sex_at_birth: body.sex_at_birth,
-        primary_goal: body.primary_goal,
-        training_experience: body.training_experience,
-        injuries_or_limitations: body.injuries_or_limitations,
-        equipment_access: body.equipment_access,
-        days_per_week: body.days_per_week,
-        session_length_minutes: body.session_length_minutes,
-        nutrition_preferences: body.nutrition_preferences,
-        dietary_restrictions: body.dietary_restrictions,
-        stress_level: body.stress_level,
-        sleep_hours: body.sleep_hours,
-        readiness_to_change: body.readiness_to_change,
-        support_notes: body.support_notes
-      },
-      { onConflict: "client_id" }
-    )
-    .select("*")
-    .single();
+  const intakePayload = {
+    client_id: body.client_id,
+    sex_at_birth: body.sex_at_birth,
+    primary_goal: body.primary_goal,
+    training_experience: body.training_experience,
+    injuries_or_limitations: body.injuries_or_limitations,
+    equipment_access: body.equipment_access,
+    days_per_week: body.days_per_week,
+    session_length_minutes: body.session_length_minutes,
+    nutrition_preferences: body.nutrition_preferences,
+    dietary_restrictions: body.dietary_restrictions,
+    stress_level: body.stress_level,
+    sleep_hours: body.sleep_hours,
+    readiness_to_change: body.readiness_to_change,
+    support_notes: body.support_notes
+  };
+
+  let { data: intake, error } = await supabase.from("client_intakes").upsert(intakePayload, { onConflict: "client_id" }).select("*").single();
+
+  if (error && isMissingSchemaField(error.code)) {
+    const fallbackPayload = {
+      client_id: body.client_id,
+      primary_goal: body.primary_goal,
+      training_experience: body.training_experience,
+      injuries_or_limitations: body.injuries_or_limitations,
+      equipment_access: body.equipment_access,
+      days_per_week: body.days_per_week,
+      session_length_minutes: body.session_length_minutes,
+      nutrition_preferences: body.nutrition_preferences,
+      dietary_restrictions: body.dietary_restrictions,
+      stress_level: body.stress_level,
+      sleep_hours: body.sleep_hours,
+      readiness_to_change: body.readiness_to_change,
+      support_notes: body.support_notes
+    };
+    const fallback = await supabase.from("client_intakes").upsert(fallbackPayload, { onConflict: "client_id" }).select("*").single();
+    intake = fallback.data;
+    error = fallback.error;
+  }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 

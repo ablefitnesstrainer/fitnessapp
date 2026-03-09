@@ -62,12 +62,12 @@ export default async function ClientsPage() {
       ? await supabase
           .from("client_intakes")
           .select(
-            "client_id,sex_at_birth,primary_goal,training_experience,injuries_or_limitations,equipment_access,days_per_week,session_length_minutes,nutrition_preferences,dietary_restrictions,stress_level,sleep_hours,readiness_to_change,support_notes,updated_at"
+            "client_id,primary_goal,training_experience,injuries_or_limitations,equipment_access,days_per_week,session_length_minutes,nutrition_preferences,dietary_restrictions,stress_level,sleep_hours,readiness_to_change,support_notes,updated_at"
           )
           .in("client_id", (clients || []).map((client) => client.id))
       : { data: [], error: null };
 
-  if (intakesError && intakesError.code !== "42P01" && intakesError.code !== "PGRST205") throw intakesError;
+  if (intakesError && intakesError.code !== "42P01" && intakesError.code !== "PGRST205" && intakesError.code !== "PGRST204") throw intakesError;
 
   const userMap = new Map((users || []).map((user) => [user.id, user]));
   const assignedClientIds = new Set((assignments || []).map((assignment) => assignment.client_id));
@@ -106,7 +106,6 @@ export default async function ClientsPage() {
       intakeSummary: intake
         ? {
             primaryGoal: intake.primary_goal || "-",
-            sexAtBirth: intake.sex_at_birth || "-",
             trainingExperience: intake.training_experience || "-",
             injuriesOrLimitations: intake.injuries_or_limitations || "-",
             equipmentAccess: intake.equipment_access || "-",

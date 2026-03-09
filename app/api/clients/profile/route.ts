@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { calculateMifflinStJeorTargets, type SexAtBirth } from "@/lib/macro-calculator";
 
 const isMissingRelation = (code?: string) => code === "42P01" || code === "PGRST205";
+const isMissingSchemaField = (code?: string) => code === "42703" || code === "PGRST204";
 
 export async function PATCH(request: Request) {
   const supabase = createClient();
@@ -97,7 +98,27 @@ export async function PATCH(request: Request) {
     support_notes: body.support_notes ?? null
   };
 
-  const { error: intakeError } = await supabase.from("client_intakes").upsert(intakePayload, { onConflict: "client_id" });
+  let { error: intakeError } = await supabase.from("client_intakes").upsert(intakePayload, { onConflict: "client_id" });
+
+  if (intakeError && isMissingSchemaField(intakeError.code)) {
+    const fallbackPayload = {
+      client_id: body.client_id,
+      primary_goal: body.primary_goal ?? "",
+      training_experience: body.training_experience ?? null,
+      injuries_or_limitations: body.injuries_or_limitations ?? null,
+      equipment_access: body.equipment_access ?? null,
+      days_per_week: body.days_per_week ?? null,
+      session_length_minutes: body.session_length_minutes ?? null,
+      nutrition_preferences: body.nutrition_preferences ?? null,
+      dietary_restrictions: body.dietary_restrictions ?? null,
+      stress_level: body.stress_level ?? null,
+      sleep_hours: body.sleep_hours ?? null,
+      readiness_to_change: body.readiness_to_change ?? null,
+      support_notes: body.support_notes ?? null
+    };
+    const fallback = await supabase.from("client_intakes").upsert(fallbackPayload, { onConflict: "client_id" });
+    intakeError = fallback.error;
+  }
 
   if (intakeError && !isMissingRelation(intakeError.code)) {
     return NextResponse.json({ error: intakeError.message }, { status: 400 });
