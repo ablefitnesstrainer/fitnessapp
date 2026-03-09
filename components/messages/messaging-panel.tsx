@@ -13,6 +13,7 @@ type Message = {
   attachment_name?: string | null;
   attachment_type?: string | null;
   attachment_size?: number | null;
+  read_at?: string | null;
 };
 type MessageTemplate = { id: string; title: string; body: string; created_at: string };
 
@@ -42,6 +43,7 @@ export function MessagingPanel({
   );
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
   const [unreadByPeer, setUnreadByPeer] = useState<Record<string, number>>(initialUnreadByPeer || {});
+  const [peerTyping, setPeerTyping] = useState(false);
   const [templateTitle, setTemplateTitle] = useState("");
   const [templateBody, setTemplateBody] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -76,6 +78,14 @@ export function MessagingPanel({
     setUnreadByPeer(payload.byPeer || {});
   };
 
+  const loadTyping = async (peerId: string) => {
+    if (!peerId) return;
+    const res = await fetch(`/api/messages/typing?peer_id=${peerId}`);
+    const payload = await res.json();
+    if (!res.ok) return;
+    setPeerTyping(Boolean(payload.typing));
+  };
+
   useEffect(() => {
     if (!selectedPeerId) return;
     let cancelled = false;
@@ -84,6 +94,7 @@ export function MessagingPanel({
       if (cancelled) return;
       await loadConversation(selectedPeerId);
       await loadUnread();
+      await loadTyping(selectedPeerId);
     };
 
     void poll();
@@ -97,6 +108,46 @@ export function MessagingPanel({
       clearInterval(intervalId);
     };
   }, [selectedPeerId]);
+
+  useEffect(() => {
+    if (!selectedPeerId) return;
+    if (!text.trim()) {
+      const stopTyping = async () => {
+        await fetch("/api/messages/typing", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ receiver_id: selectedPeerId, is_typing: false })
+        });
+      };
+      void stopTyping();
+      return;
+    }
+
+    let cancelled = false;
+    const sendTyping = async () => {
+      if (cancelled) return;
+      await fetch("/api/messages/typing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ receiver_id: selectedPeerId, is_typing: true })
+      });
+    };
+
+    void sendTyping();
+    const intervalId = setInterval(() => {
+      void sendTyping();
+    }, 4000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+      void fetch("/api/messages/typing", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ receiver_id: selectedPeerId, is_typing: false })
+      });
+    };
+  }, [selectedPeerId, text]);
 
   useEffect(() => {
     if (!messageListRef.current) return;
@@ -159,8 +210,14 @@ export function MessagingPanel({
 
     setMessages((prev) => [...prev, data.message]);
     setText("");
+    setPeerTyping(false);
     setAttachment(null);
     setStatus("Message sent");
+    await fetch("/api/messages/typing", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ receiver_id: selectedPeerId, is_typing: false })
+    });
   };
 
   const saveTemplate = async () => {
@@ -219,6 +276,8 @@ export function MessagingPanel({
         <div ref={messageListRef} className="flex-1 space-y-2 overflow-y-auto p-1">
           {messages.map((entry) => {
             const mine = entry.sender_id === currentUserId;
+            const sentAt = new Date(entry.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+            const readAt = entry.read_at ? new Date(entry.read_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : null;
             return (
               <div key={entry.id} className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${mine ? "ml-auto bg-blue-600 text-white" : "bg-slate-100"}`}>
                 <p>{entry.message}</p>
@@ -227,10 +286,17 @@ export function MessagingPanel({
                     📎 {entry.attachment_name || "Attachment"}
                   </a>
                 )}
-                <p className={`mt-1 text-xs ${mine ? "text-blue-100" : "text-slate-500"}`}>{new Date(entry.created_at).toLocaleString()}</p>
+                <p className={`mt-1 text-xs ${mine ? "text-blue-100" : "text-slate-500"}`}>
+                  {mine ? (readAt ? `Read ${readAt}` : `Sent ${sentAt}`) : new Date(entry.created_at).toLocaleString()}
+                </p>
               </div>
             );
           })}
+          {peerTyping && (
+            <div className="max-w-[80%] rounded-xl bg-slate-100 px-3 py-2 text-sm text-slate-600">
+              Typing...
+            </div>
+          )}
         </div>
 
         {canUseTemplates && (
