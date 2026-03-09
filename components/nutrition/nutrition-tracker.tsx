@@ -37,6 +37,15 @@ type FoodSearchResult = {
   servingText?: string | null;
 };
 
+type FoodDetail = {
+  description: string;
+  servingText?: string | null;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};
+
 function dayKey(dateValue: string) {
   const date = new Date(dateValue);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -92,6 +101,8 @@ export function NutritionTracker({
   const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [foodLoadingId, setFoodLoadingId] = useState<number | null>(null);
+  const [selectedFood, setSelectedFood] = useState<FoodDetail | null>(null);
+  const [servings, setServings] = useState(1);
   const [status, setStatus] = useState<string | null>(null);
   const [savingTargets, setSavingTargets] = useState(false);
 
@@ -198,6 +209,8 @@ export function NutritionTracker({
 
     setMeals([data.meal, ...meals]);
     setForm({ food_name: "", calories: 0, protein: 0, carbs: 0, fat: 0 });
+    setSelectedFood(null);
+    setServings(1);
     setStatus("Meal logged.");
   };
 
@@ -235,19 +248,51 @@ export function NutritionTracker({
         return;
       }
 
+      const food: FoodDetail | null =
+        payload?.food && typeof payload.food === "object"
+          ? {
+              description: String(payload.food.description || ""),
+              servingText: payload.food.servingText || null,
+              calories: Number(payload.food.calories) || 0,
+              protein: Number(payload.food.protein) || 0,
+              carbs: Number(payload.food.carbs) || 0,
+              fat: Number(payload.food.fat) || 0
+            }
+          : null;
+
+      if (!food || !food.description) {
+        setStatus("Food details temporarily unavailable");
+        return;
+      }
+
+      setSelectedFood(food);
+      setServings(1);
       setForm({
-        food_name: payload.food.description || "",
-        calories: payload.food.calories ?? 0,
-        protein: payload.food.protein ?? 0,
-        carbs: payload.food.carbs ?? 0,
-        fat: payload.food.fat ?? 0
+        food_name: food.description,
+        calories: food.calories,
+        protein: food.protein,
+        carbs: food.carbs,
+        fat: food.fat
       });
-      setStatus(payload.food.servingText ? `Autofilled from USDA (${payload.food.servingText}).` : "Autofilled from USDA.");
+      setStatus(food.servingText ? `Autofilled from USDA (${food.servingText}).` : "Autofilled from USDA.");
     } catch {
       setStatus("Food details temporarily unavailable");
     } finally {
       setFoodLoadingId(null);
     }
+  };
+
+  const applyServingMultiplier = (nextServings: number) => {
+    if (!selectedFood) return;
+    const safeServings = Number.isFinite(nextServings) && nextServings > 0 ? nextServings : 1;
+    setServings(safeServings);
+    setForm({
+      food_name: selectedFood.description,
+      calories: Math.round(selectedFood.calories * safeServings),
+      protein: Math.round(selectedFood.protein * safeServings),
+      carbs: Math.round(selectedFood.carbs * safeServings),
+      fat: Math.round(selectedFood.fat * safeServings)
+    });
   };
 
   const deleteQuickMeal = async (id: string) => {
@@ -324,7 +369,7 @@ export function NutritionTracker({
       </div>
 
       <div className="card space-y-3">
-        <h3 className="text-lg font-semibold">Add Meal</h3>
+        <h3 className="text-lg font-semibold">Add Food</h3>
         <div className="space-y-2">
           <label className="label">Search USDA food database</label>
           <input className="input" placeholder="Search foods (e.g. chicken breast, oats, greek yogurt)" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
@@ -348,12 +393,37 @@ export function NutritionTracker({
             </div>
           )}
         </div>
+        {selectedFood && (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-sm font-medium text-slate-900">Serving Size</p>
+            <p className="text-xs text-slate-500">{selectedFood.servingText || "Provider serving text unavailable"}</p>
+            <div className="mt-2 w-40">
+              <label className="label">Servings</label>
+              <input className="input" type="number" min={0.25} step={0.25} value={servings} onChange={(e) => applyServingMultiplier(Number(e.target.value))} />
+            </div>
+          </div>
+        )}
         <div className="grid gap-2 md:grid-cols-5">
-          <input className="input" placeholder="Food" value={form.food_name} onChange={(e) => setForm({ ...form, food_name: e.target.value })} />
-          <input className="input" type="number" placeholder="Calories" value={form.calories} onChange={(e) => setForm({ ...form, calories: Number(e.target.value) })} />
-          <input className="input" type="number" placeholder="Protein" value={form.protein} onChange={(e) => setForm({ ...form, protein: Number(e.target.value) })} />
-          <input className="input" type="number" placeholder="Carbs" value={form.carbs} onChange={(e) => setForm({ ...form, carbs: Number(e.target.value) })} />
-          <input className="input" type="number" placeholder="Fat" value={form.fat} onChange={(e) => setForm({ ...form, fat: Number(e.target.value) })} />
+          <div className="space-y-1">
+            <label className="label">Food Name</label>
+            <input className="input" placeholder="Food" value={form.food_name} onChange={(e) => setForm({ ...form, food_name: e.target.value })} />
+          </div>
+          <div className="space-y-1">
+            <label className="label">Calories</label>
+            <input className="input" type="number" placeholder="Calories" value={form.calories} onChange={(e) => setForm({ ...form, calories: Number(e.target.value) })} />
+          </div>
+          <div className="space-y-1">
+            <label className="label">Protein (g)</label>
+            <input className="input" type="number" placeholder="Protein" value={form.protein} onChange={(e) => setForm({ ...form, protein: Number(e.target.value) })} />
+          </div>
+          <div className="space-y-1">
+            <label className="label">Carbs (g)</label>
+            <input className="input" type="number" placeholder="Carbs" value={form.carbs} onChange={(e) => setForm({ ...form, carbs: Number(e.target.value) })} />
+          </div>
+          <div className="space-y-1">
+            <label className="label">Fat (g)</label>
+            <input className="input" type="number" placeholder="Fat" value={form.fat} onChange={(e) => setForm({ ...form, fat: Number(e.target.value) })} />
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <button className="btn-primary" onClick={() => addMeal()}>
