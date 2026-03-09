@@ -31,6 +31,7 @@ export function ClientProgressPanel({ clientId }: { clientId: string }) {
   const [status, setStatus] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [photoForm, setPhotoForm] = useState({ photo_url: "", caption: "", taken_at: new Date().toISOString().slice(0, 10) });
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [noteForm, setNoteForm] = useState("");
   const [compareIds, setCompareIds] = useState<string[]>([]);
 
@@ -86,6 +87,39 @@ export function ClientProgressPanel({ clientId }: { clientId: string }) {
     setPhotoForm({ photo_url: "", caption: "", taken_at: new Date().toISOString().slice(0, 10) });
     setPending(null);
     setStatus("Progress photo added.");
+    void load();
+  };
+
+  const uploadPhotoFile = async () => {
+    if (!photoFile) {
+      setStatus("Choose a photo file first.");
+      return;
+    }
+
+    setPending("photo-upload");
+    const formData = new FormData();
+    formData.append("client_id", clientId);
+    formData.append("file", photoFile);
+    formData.append("caption", photoForm.caption);
+    formData.append("taken_at", photoForm.taken_at);
+
+    const res = await fetch("/api/clients/progress/upload", {
+      method: "POST",
+      body: formData
+    });
+
+    const payload = await res.json();
+    if (!res.ok) {
+      setStatus(payload.error || "Failed to upload photo");
+      setPending(null);
+      return;
+    }
+
+    setPhotos((prev) => [payload.photo, ...prev]);
+    setPhotoFile(null);
+    setPhotoForm({ photo_url: "", caption: "", taken_at: new Date().toISOString().slice(0, 10) });
+    setPending(null);
+    setStatus("Progress photo uploaded.");
     void load();
   };
 
@@ -146,12 +180,23 @@ export function ClientProgressPanel({ clientId }: { clientId: string }) {
         <div className="card space-y-3">
           <h3 className="text-lg font-semibold">Progress Photos</h3>
           <div className="grid gap-2">
+            <label className="label">Upload photo file (JPG, PNG, WEBP)</label>
+            <input
+              className="input"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+            />
+            <button className="btn-primary" onClick={uploadPhotoFile} disabled={pending === "photo-upload"}>
+              {pending === "photo-upload" ? "Uploading..." : "Upload Photo File"}
+            </button>
+            <p className="text-xs text-slate-500">Or add by URL below.</p>
             <input className="input" placeholder="Photo URL (https://...)" value={photoForm.photo_url} onChange={(e) => setPhotoForm((p) => ({ ...p, photo_url: e.target.value }))} />
             <div className="grid gap-2 md:grid-cols-2">
               <input className="input" placeholder="Caption (optional)" value={photoForm.caption} onChange={(e) => setPhotoForm((p) => ({ ...p, caption: e.target.value }))} />
               <input className="input" type="date" value={photoForm.taken_at} onChange={(e) => setPhotoForm((p) => ({ ...p, taken_at: e.target.value }))} />
             </div>
-            <button className="btn-primary" onClick={addPhoto} disabled={pending === "photo"}>
+            <button className="btn-secondary" onClick={addPhoto} disabled={pending === "photo"}>
               {pending === "photo" ? "Adding..." : "Add Progress Photo"}
             </button>
           </div>

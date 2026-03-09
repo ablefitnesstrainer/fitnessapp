@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 type Checkin = {
   id: string;
@@ -22,6 +22,9 @@ type Checkin = {
 
 export function CheckinForm({ clientId, initialCheckins }: { clientId: string; initialCheckins: Checkin[] }) {
   const [checkins, setCheckins] = useState(initialCheckins);
+  const [recentPhotos, setRecentPhotos] = useState<Array<{ id: string; photo_url: string; taken_at: string; caption?: string | null }>>([]);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const [form, setForm] = useState({
     workouts_completed: 0,
     workouts_scheduled: 4,
@@ -46,6 +49,47 @@ export function CheckinForm({ clientId, initialCheckins }: { clientId: string; i
     notes: ""
   });
   const [status, setStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadPhotos = async () => {
+      const res = await fetch(`/api/clients/progress?client_id=${encodeURIComponent(clientId)}`, { cache: "no-store" });
+      const payload = await res.json();
+      if (!res.ok) return;
+      setRecentPhotos((payload.photos || []).slice(0, 6));
+    };
+    void loadPhotos();
+  }, [clientId]);
+
+  const uploadProgressPhoto = async () => {
+    if (!photoFile) {
+      setStatus("Choose a progress photo first.");
+      return;
+    }
+
+    setPhotoUploading(true);
+    const formData = new FormData();
+    formData.append("client_id", clientId);
+    formData.append("file", photoFile);
+    formData.append("taken_at", new Date().toISOString().slice(0, 10));
+    formData.append("caption", "Client check-in upload");
+
+    const res = await fetch("/api/clients/progress/upload", {
+      method: "POST",
+      body: formData
+    });
+    const payload = await res.json();
+    if (!res.ok) {
+      setStatus(payload.error || "Failed to upload progress photo");
+      setPhotoUploading(false);
+      return;
+    }
+
+    setRecentPhotos((prev) => [payload.photo, ...prev].slice(0, 6));
+    setPhotoFile(null);
+    setForm((prev) => ({ ...prev, progress_photos_uploaded: "yes" }));
+    setStatus("Progress photo uploaded.");
+    setPhotoUploading(false);
+  };
 
   const onSubmit = async () => {
     const res = await fetch("/api/checkins", {
@@ -135,6 +179,28 @@ export function CheckinForm({ clientId, initialCheckins }: { clientId: string; i
             <div>
               <label className="label">Menstrual cycle note (if applicable)</label>
               <input className="input" value={form.cycle_status} onChange={(e) => setForm({ ...form, cycle_status: e.target.value })} />
+            </div>
+            <div className="md:col-span-3 rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <p className="text-sm font-semibold text-slate-900">Upload progress photo</p>
+              <p className="text-xs text-slate-500">Upload from phone/computer. Your coach can view this in your profile timeline.</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <input
+                  className="input max-w-xs"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+                />
+                <button className="btn-secondary" onClick={uploadProgressPhoto} disabled={photoUploading}>
+                  {photoUploading ? "Uploading..." : "Upload Photo"}
+                </button>
+              </div>
+              {recentPhotos.length > 0 && (
+                <div className="mt-3 grid gap-2 md:grid-cols-3">
+                  {recentPhotos.map((photo) => (
+                    <img key={photo.id} src={photo.photo_url} alt={photo.caption || "Progress photo"} className="h-24 w-full rounded-lg object-cover" />
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </section>

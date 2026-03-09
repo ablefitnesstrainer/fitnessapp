@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 
 async function authorizeClientAccess(supabase: ReturnType<typeof createClient>, requestedClientId?: string | null) {
   const {
@@ -36,15 +37,17 @@ export async function GET(request: Request) {
   const auth = await authorizeClientAccess(supabase, searchParams.get("client_id"));
   if ("error" in auth) return auth.error;
 
-  const [{ data: photos, error: photosError }, { data: notes, error: notesError }] = await Promise.all([
-    supabase.from("progress_photos").select("id,photo_url,caption,taken_at,created_at").eq("client_id", auth.clientId).order("taken_at", { ascending: false }).limit(40),
-    supabase.from("coach_notes").select("id,note,created_at").eq("client_id", auth.clientId).order("created_at", { ascending: false }).limit(40)
+  const [photosRes, notesRes] = await Promise.all([
+    supabase.from("progress_photos").select("id,photo_url,caption,taken_at,created_at,storage_path").eq("client_id", auth.clientId).order("taken_at", { ascending: false }).limit(40),
+    auth.role === "client"
+      ? Promise.resolve({ data: [], error: null as null | { message?: string } })
+      : supabase.from("coach_notes").select("id,note,created_at").eq("client_id", auth.clientId).order("created_at", { ascending: false }).limit(40)
   ]);
 
-  if (photosError) return NextResponse.json({ error: photosError.message }, { status: 400 });
-  if (notesError) return NextResponse.json({ error: notesError.message }, { status: 400 });
+  if (photosRes.error) return NextResponse.json({ error: photosRes.error.message }, { status: 400 });
+  if (notesRes.error) return NextResponse.json({ error: notesRes.error.message }, { status: 400 });
 
-  return NextResponse.json({ photos: photos || [], notes: notes || [] });
+  return NextResponse.json({ photos: photosRes.data || [], notes: notesRes.data || [] });
 }
 
 export async function POST(request: Request) {
@@ -62,7 +65,6 @@ export async function POST(request: Request) {
   if ("error" in auth) return auth.error;
 
   if (body.type === "photo") {
-    if (auth.role === "client") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     if (!body.photo_url?.trim()) return NextResponse.json({ error: "photo_url is required" }, { status: 400 });
 
     const { data: photo, error } = await supabase
@@ -70,6 +72,7 @@ export async function POST(request: Request) {
       .insert({
         client_id: auth.clientId,
         photo_url: body.photo_url.trim(),
+        storage_path: null,
         caption: body.caption?.trim() || null,
         taken_at: body.taken_at || new Date().toISOString().slice(0, 10),
         uploaded_by: auth.userId
@@ -82,6 +85,7 @@ export async function POST(request: Request) {
   }
 
   if (!body.note?.trim()) return NextResponse.json({ error: "note is required" }, { status: 400 });
+  if (auth.role === "client") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { data: note, error } = await supabase
     .from("coach_notes")
@@ -111,6 +115,14 @@ export async function DELETE(request: Request) {
 
   const table = type === "photo" ? "progress_photos" : type === "note" ? "coach_notes" : null;
   if (!table) return NextResponse.json({ error: "Invalid type" }, { status: 400 });
+
+  if (table === "progress_photos") {
+    const { data: photo } = await supabase.from("progress_photos").select("storage_path").eq("id", id).eq("client_id", auth.clientId).maybeSingle();
+    if (photo?.storage_path) {
+      const admin = createAdminClient();
+      await admin.storage.from("progress-photos").remove([photo.storage_path]);
+    }
+  }
 
   const { error } = await supabase.from(table).delete().eq("id", id).eq("client_id", auth.clientId);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
