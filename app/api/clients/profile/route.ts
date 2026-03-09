@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { calculateMifflinStJeorTargets, type SexAtBirth } from "@/lib/macro-calculator";
 
 const isMissingRelation = (code?: string) => code === "42P01" || code === "PGRST205";
 
@@ -23,6 +24,7 @@ export async function PATCH(request: Request) {
     goal?: string;
     equipment?: string;
     current_weight?: number;
+    sex_at_birth?: "male" | "female";
     primary_goal?: string;
     training_experience?: string;
     injuries_or_limitations?: string;
@@ -35,6 +37,11 @@ export async function PATCH(request: Request) {
     sleep_hours?: number;
     readiness_to_change?: number;
     support_notes?: string;
+    auto_calculate_targets?: boolean;
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
   };
 
   if (!body.client_id) {
@@ -76,6 +83,7 @@ export async function PATCH(request: Request) {
   const intakePayload = {
     client_id: body.client_id,
     primary_goal: body.primary_goal ?? "",
+    sex_at_birth: body.sex_at_birth ?? "male",
     training_experience: body.training_experience ?? null,
     injuries_or_limitations: body.injuries_or_limitations ?? null,
     equipment_access: body.equipment_access ?? null,
@@ -93,6 +101,54 @@ export async function PATCH(request: Request) {
 
   if (intakeError && !isMissingRelation(intakeError.code)) {
     return NextResponse.json({ error: intakeError.message }, { status: 400 });
+  }
+
+  const hasManualTargets =
+    typeof body.calories === "number" &&
+    typeof body.protein === "number" &&
+    typeof body.carbs === "number" &&
+    typeof body.fat === "number";
+
+  if (hasManualTargets) {
+    const { error: manualTargetError } = await supabase.from("nutrition_targets").upsert(
+      {
+        client_id: body.client_id,
+        calories: body.calories,
+        protein: body.protein,
+        carbs: body.carbs,
+        fat: body.fat
+      },
+      { onConflict: "client_id" }
+    );
+    if (manualTargetError) return NextResponse.json({ error: manualTargetError.message }, { status: 400 });
+  } else if (body.auto_calculate_targets) {
+    if (
+      typeof body.age === "number" &&
+      typeof body.height === "number" &&
+      typeof body.current_weight === "number" &&
+      body.current_weight > 0
+    ) {
+      const targets = calculateMifflinStJeorTargets({
+        sexAtBirth: (body.sex_at_birth || "male") as SexAtBirth,
+        age: body.age,
+        heightInches: body.height,
+        weightLbs: body.current_weight,
+        daysPerWeek: body.days_per_week ?? null,
+        goalText: body.primary_goal || body.goal || ""
+      });
+
+      const { error: autoTargetError } = await supabase.from("nutrition_targets").upsert(
+        {
+          client_id: body.client_id,
+          calories: targets.calories,
+          protein: targets.protein,
+          carbs: targets.carbs,
+          fat: targets.fat
+        },
+        { onConflict: "client_id" }
+      );
+      if (autoTargetError) return NextResponse.json({ error: autoTargetError.message }, { status: 400 });
+    }
   }
 
   return NextResponse.json({ ok: true });

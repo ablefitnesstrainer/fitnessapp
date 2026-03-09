@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type IntakePayload = {
+  sex_at_birth: "male" | "female";
   age: number;
   height: number;
   current_weight: number;
@@ -24,6 +25,7 @@ type IntakePayload = {
 export function IntakeForm({ clientId }: { clientId: string }) {
   const router = useRouter();
   const [form, setForm] = useState<IntakePayload>({
+    sex_at_birth: "male",
     age: 30,
     height: 68,
     current_weight: 170,
@@ -78,6 +80,13 @@ export function IntakeForm({ clientId }: { clientId: string }) {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
+        <div>
+          <label className="label">Sex at birth</label>
+          <select className="input" value={form.sex_at_birth} onChange={(e) => setForm({ ...form, sex_at_birth: e.target.value as "male" | "female" })}>
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
         <div>
           <label className="label">Age</label>
           <input className="input" type="number" min={12} max={99} value={form.age} onChange={(e) => setForm({ ...form, age: Number(e.target.value) })} />

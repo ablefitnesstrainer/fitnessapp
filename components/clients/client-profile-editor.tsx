@@ -13,6 +13,7 @@ type Props = {
     goal: string;
     equipment: string;
     currentWeight: number | null;
+    sexAtBirth: "male" | "female";
     primaryGoal: string;
     trainingExperience: string;
     injuriesOrLimitations: string;
@@ -25,6 +26,10 @@ type Props = {
     sleepHours: number | null;
     readinessToChange: number | null;
     supportNotes: string;
+    calories: number | null;
+    protein: number | null;
+    carbs: number | null;
+    fat: number | null;
   };
 };
 
@@ -48,6 +53,7 @@ export function ClientProfileEditor({ clientId, clientName, initial }: Props) {
         goal: form.goal,
         equipment: form.equipment,
         current_weight: form.currentWeight,
+        sex_at_birth: form.sexAtBirth,
         primary_goal: form.primaryGoal,
         training_experience: form.trainingExperience,
         injuries_or_limitations: form.injuriesOrLimitations,
@@ -59,7 +65,11 @@ export function ClientProfileEditor({ clientId, clientName, initial }: Props) {
         stress_level: form.stressLevel,
         sleep_hours: form.sleepHours,
         readiness_to_change: form.readinessToChange,
-        support_notes: form.supportNotes
+        support_notes: form.supportNotes,
+        calories: form.calories,
+        protein: form.protein,
+        carbs: form.carbs,
+        fat: form.fat
       })
     });
 
@@ -71,6 +81,38 @@ export function ClientProfileEditor({ clientId, clientName, initial }: Props) {
     }
 
     setStatus("Client profile updated.");
+    setSaving(false);
+    router.refresh();
+  };
+
+  const recalculateTargets = async () => {
+    setSaving(true);
+    setStatus(null);
+
+    const res = await fetch("/api/clients/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client_id: clientId,
+        age: form.age,
+        height: form.height,
+        current_weight: form.currentWeight,
+        sex_at_birth: form.sexAtBirth,
+        goal: form.goal,
+        primary_goal: form.primaryGoal,
+        days_per_week: form.daysPerWeek,
+        auto_calculate_targets: true
+      })
+    });
+
+    const payload = await res.json();
+    if (!res.ok) {
+      setStatus(payload.error || "Failed to recalculate targets");
+      setSaving(false);
+      return;
+    }
+
+    setStatus("Targets recalculated with Mifflin-St Jeor.");
     setSaving(false);
     router.refresh();
   };
@@ -89,6 +131,13 @@ export function ClientProfileEditor({ clientId, clientName, initial }: Props) {
           <p className="text-sm text-slate-600">These values power calorie and macro planning.</p>
         </div>
         <div className="grid gap-3 md:grid-cols-3">
+          <div>
+            <label className="label">Sex at birth</label>
+            <select className="input" value={form.sexAtBirth} onChange={(e) => setForm({ ...form, sexAtBirth: e.target.value as "male" | "female" })}>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </select>
+          </div>
           <div>
             <label className="label">Age</label>
             <input className="input" type="number" min={12} max={99} value={form.age ?? ""} onChange={(e) => setForm({ ...form, age: e.target.value === "" ? null : Number(e.target.value) })} />
@@ -110,6 +159,34 @@ export function ClientProfileEditor({ clientId, clientName, initial }: Props) {
             />
           </div>
         </div>
+      </div>
+
+      <div className="card space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Nutrition Targets</h2>
+          <p className="text-sm text-slate-600">Auto-calculate with Mifflin-St Jeor or edit manually.</p>
+        </div>
+        <div className="grid gap-3 md:grid-cols-4">
+          <div>
+            <label className="label">Calories</label>
+            <input className="input" type="number" min={1000} max={7000} value={form.calories ?? ""} onChange={(e) => setForm({ ...form, calories: e.target.value === "" ? null : Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className="label">Protein</label>
+            <input className="input" type="number" min={30} max={400} value={form.protein ?? ""} onChange={(e) => setForm({ ...form, protein: e.target.value === "" ? null : Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className="label">Carbs</label>
+            <input className="input" type="number" min={20} max={900} value={form.carbs ?? ""} onChange={(e) => setForm({ ...form, carbs: e.target.value === "" ? null : Number(e.target.value) })} />
+          </div>
+          <div>
+            <label className="label">Fat</label>
+            <input className="input" type="number" min={10} max={250} value={form.fat ?? ""} onChange={(e) => setForm({ ...form, fat: e.target.value === "" ? null : Number(e.target.value) })} />
+          </div>
+        </div>
+        <button className="btn-secondary" onClick={recalculateTargets} disabled={saving}>
+          Recalculate with Mifflin-St Jeor
+        </button>
       </div>
 
       <div className="card space-y-5">

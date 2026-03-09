@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { calculateMifflinStJeorTargets } from "@/lib/macro-calculator";
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -11,6 +12,7 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as {
     client_id: string;
+    sex_at_birth: "male" | "female";
     age: number;
     height: number;
     current_weight: number;
@@ -33,6 +35,7 @@ export async function POST(request: Request) {
     .upsert(
       {
         client_id: body.client_id,
+        sex_at_birth: body.sex_at_birth,
         primary_goal: body.primary_goal,
         training_experience: body.training_experience,
         injuries_or_limitations: body.injuries_or_limitations,
@@ -69,6 +72,28 @@ export async function POST(request: Request) {
   });
 
   if (weightError) return NextResponse.json({ error: weightError.message }, { status: 400 });
+
+  const autoTargets = calculateMifflinStJeorTargets({
+    sexAtBirth: body.sex_at_birth,
+    age: body.age,
+    heightInches: body.height,
+    weightLbs: body.current_weight,
+    daysPerWeek: body.days_per_week,
+    goalText: body.primary_goal
+  });
+
+  const { error: targetError } = await supabase.from("nutrition_targets").upsert(
+    {
+      client_id: body.client_id,
+      calories: autoTargets.calories,
+      protein: autoTargets.protein,
+      carbs: autoTargets.carbs,
+      fat: autoTargets.fat
+    },
+    { onConflict: "client_id" }
+  );
+
+  if (targetError) return NextResponse.json({ error: targetError.message }, { status: 400 });
 
   return NextResponse.json({ intake });
 }

@@ -62,7 +62,7 @@ export default async function ClientsPage() {
       ? await supabase
           .from("client_intakes")
           .select(
-            "client_id,primary_goal,training_experience,injuries_or_limitations,equipment_access,days_per_week,session_length_minutes,nutrition_preferences,dietary_restrictions,stress_level,sleep_hours,readiness_to_change,support_notes,updated_at"
+            "client_id,sex_at_birth,primary_goal,training_experience,injuries_or_limitations,equipment_access,days_per_week,session_length_minutes,nutrition_preferences,dietary_restrictions,stress_level,sleep_hours,readiness_to_change,support_notes,updated_at"
           )
           .in("client_id", (clients || []).map((client) => client.id))
       : { data: [], error: null };
@@ -106,6 +106,7 @@ export default async function ClientsPage() {
       intakeSummary: intake
         ? {
             primaryGoal: intake.primary_goal || "-",
+            sexAtBirth: intake.sex_at_birth || "-",
             trainingExperience: intake.training_experience || "-",
             injuriesOrLimitations: intake.injuries_or_limitations || "-",
             equipmentAccess: intake.equipment_access || "-",
