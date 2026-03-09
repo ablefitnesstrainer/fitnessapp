@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Peer = { id: string; name: string; email: string; role: "admin" | "coach" | "client" };
 type Message = {
@@ -44,6 +44,7 @@ export function MessagingPanel({
   const [uploading, setUploading] = useState(false);
   const [attachment, setAttachment] = useState<{ url: string; path: string; name: string; type: string; size: number } | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const messageListRef = useRef<HTMLDivElement | null>(null);
 
   const loadConversation = async (peerId: string) => {
     if (!peerId) return;
@@ -53,14 +54,42 @@ export function MessagingPanel({
       setStatus(data.error || "Could not load messages");
       return;
     }
-    setMessages(data.messages);
+    const nextMessages = Array.isArray(data.messages) ? data.messages : [];
+    setMessages((prev) => {
+      const prevLast = prev[prev.length - 1]?.id;
+      const nextLast = nextMessages[nextMessages.length - 1]?.id;
+      if (prev.length === nextMessages.length && prevLast === nextLast) {
+        return prev;
+      }
+      return nextMessages;
+    });
   };
 
   useEffect(() => {
-    if (selectedPeerId) {
-      loadConversation(selectedPeerId);
-    }
+    if (!selectedPeerId) return;
+    let cancelled = false;
+
+    const poll = async () => {
+      if (cancelled) return;
+      await loadConversation(selectedPeerId);
+    };
+
+    void poll();
+    const intervalId = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      void poll();
+    }, 3000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(intervalId);
+    };
   }, [selectedPeerId]);
+
+  useEffect(() => {
+    if (!messageListRef.current) return;
+    messageListRef.current.scrollTop = messageListRef.current.scrollHeight;
+  }, [messages]);
 
   useEffect(() => {
     if (!canUseTemplates) return;
@@ -168,7 +197,7 @@ export function MessagingPanel({
       </aside>
 
       <section className="card flex h-[560px] flex-col">
-        <div className="flex-1 space-y-2 overflow-y-auto p-1">
+        <div ref={messageListRef} className="flex-1 space-y-2 overflow-y-auto p-1">
           {messages.map((entry) => {
             const mine = entry.sender_id === currentUserId;
             return (
