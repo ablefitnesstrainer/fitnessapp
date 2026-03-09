@@ -66,7 +66,7 @@ export function CoachDashboard({
           <p className="mt-1 text-3xl font-bold text-slate-900">{overdueCheckins.length}</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {overdueCheckins.slice(0, 6).map((item) => (
-              <Link key={item.clientId} href={`/messages?peer_id=${item.clientUserId}`} className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+              <Link key={item.clientId} href={`/messages?peer_id=${item.clientUserId}&preset=checkin_nudge`} className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
                 {item.clientName} {item.daysSinceCheckin === null ? "(No check-in)" : `(${item.daysSinceCheckin}d)`}
               </Link>
             ))}
@@ -106,6 +106,9 @@ export function CoachDashboard({
               <div className="mt-3 flex flex-wrap gap-2">
                 <Link href={`/messages?peer_id=${item.clientUserId}`} className="btn-secondary">
                   Message
+                </Link>
+                <Link href={`/messages?peer_id=${item.clientUserId}&preset=checkin_nudge`} className="btn-secondary">
+                  Send Nudge
                 </Link>
                 <Link href={`/clients/${item.clientId}`} className="btn-secondary">
                   Open Profile

@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { displayNameFromIdentity } from "@/lib/display-name";
 import { getCurrentAppUser } from "@/services/auth-service";
 
-export default async function MessagesPage({ searchParams }: { searchParams?: { peer_id?: string } }) {
+export default async function MessagesPage({ searchParams }: { searchParams?: { peer_id?: string; preset?: string } }) {
   const supabase = createClient();
   const currentUser = await getCurrentAppUser();
   const requestedPeerId = searchParams?.peer_id;
@@ -41,7 +41,14 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
   return (
     <section className="space-y-4">
       <h1 className="text-2xl font-bold">Messaging</h1>
-      <MessagingPanel currentUserId={currentUser.id} peers={normalizedPeers} initialMessages={initialMessages || []} initialSelectedPeerId={selectedPeer?.id || ""} />
+      <MessagingPanel
+        currentUserId={currentUser.id}
+        peers={normalizedPeers}
+        initialMessages={initialMessages || []}
+        initialSelectedPeerId={selectedPeer?.id || ""}
+        initialPreset={searchParams?.preset || ""}
+        canUseTemplates={currentUser.role === "coach" || currentUser.role === "admin"}
+      />
     </section>
   );
 }

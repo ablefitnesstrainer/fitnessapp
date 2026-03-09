@@ -32,14 +32,32 @@ export async function POST(request: Request) {
 
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const body = (await request.json()) as { receiver_id: string; message: string };
+  const body = (await request.json()) as {
+    receiver_id: string;
+    message: string;
+    attachment_url?: string | null;
+    attachment_name?: string | null;
+    attachment_type?: string | null;
+    attachment_size?: number | null;
+    attachment_path?: string | null;
+  };
+
+  if (!body.receiver_id) return NextResponse.json({ error: "receiver_id is required" }, { status: 400 });
+  if (!body.message?.trim() && !body.attachment_url) {
+    return NextResponse.json({ error: "Message text or attachment is required" }, { status: 400 });
+  }
 
   const { data: message, error } = await supabase
     .from("messages")
     .insert({
       sender_id: user.id,
       receiver_id: body.receiver_id,
-      message: body.message
+      message: body.message?.trim() || "Attachment",
+      attachment_url: body.attachment_url || null,
+      attachment_name: body.attachment_name || null,
+      attachment_type: body.attachment_type || null,
+      attachment_size: body.attachment_size || null,
+      attachment_path: body.attachment_path || null
     })
     .select("*")
     .single();
