@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Target = {
   calories: number;
@@ -28,6 +28,13 @@ type QuickMeal = {
   carbs: number;
   fat: number;
   created_at: string;
+};
+
+type FoodSearchResult = {
+  fdcId: number;
+  description: string;
+  brandOwner?: string | null;
+  servingText?: string | null;
 };
 
 function dayKey(dateValue: string) {
@@ -81,8 +88,54 @@ export function NutritionTracker({
   const [quickMeals, setQuickMeals] = useState(initialQuickMeals);
   const [form, setForm] = useState({ food_name: "", calories: 0, protein: 0, carbs: 0, fat: 0 });
   const [targetForm, setTargetForm] = useState<Target>(target || { calories: 2200, protein: 160, carbs: 220, fat: 70 });
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<FoodSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [foodLoadingId, setFoodLoadingId] = useState<number | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [savingTargets, setSavingTargets] = useState(false);
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (q.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        setSearching(true);
+        const res = await fetch(`/api/nutrition/foods/search?q=${encodeURIComponent(q)}`);
+        const payload = await res.json();
+        if (!res.ok) {
+          if (!cancelled) {
+            setStatus(payload.error || "Food search temporarily unavailable");
+            setSearchResults([]);
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          setSearchResults(Array.isArray(payload.foods) ? payload.foods : []);
+        }
+      } catch {
+        if (!cancelled) {
+          setStatus("Food search temporarily unavailable");
+          setSearchResults([]);
+        }
+      } finally {
+        if (!cancelled) {
+          setSearching(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchQuery]);
 
   const dailyTotalsMap = useMemo(() => {
     const map = new Map<string, { calories: number; protein: number; carbs: number; fat: number }>();
@@ -170,6 +223,33 @@ export function NutritionTracker({
     setStatus("Quick meal saved.");
   };
 
+  const useFoodResult = async (fdcId: number) => {
+    setFoodLoadingId(fdcId);
+    setStatus(null);
+
+    try {
+      const res = await fetch(`/api/nutrition/foods/${fdcId}`);
+      const payload = await res.json();
+      if (!res.ok) {
+        setStatus(payload.error || "Food details temporarily unavailable");
+        return;
+      }
+
+      setForm({
+        food_name: payload.food.description || "",
+        calories: payload.food.calories ?? 0,
+        protein: payload.food.protein ?? 0,
+        carbs: payload.food.carbs ?? 0,
+        fat: payload.food.fat ?? 0
+      });
+      setStatus(payload.food.servingText ? `Autofilled from USDA (${payload.food.servingText}).` : "Autofilled from USDA.");
+    } catch {
+      setStatus("Food details temporarily unavailable");
+    } finally {
+      setFoodLoadingId(null);
+    }
+  };
+
   const deleteQuickMeal = async (id: string) => {
     const response = await fetch(`/api/nutrition/quick-meals?id=${id}`, { method: "DELETE" });
     const data = await response.json();
@@ -245,6 +325,29 @@ export function NutritionTracker({
 
       <div className="card space-y-3">
         <h3 className="text-lg font-semibold">Add Meal</h3>
+        <div className="space-y-2">
+          <label className="label">Search USDA food database</label>
+          <input className="input" placeholder="Search foods (e.g. chicken breast, oats, greek yogurt)" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+          {searching && <p className="text-xs text-slate-500">Searching...</p>}
+          {searchResults.length > 0 && (
+            <div className="max-h-56 space-y-2 overflow-y-auto rounded-xl border border-slate-200 bg-slate-50 p-2">
+              {searchResults.map((item) => (
+                <div key={item.fdcId} className="flex items-center justify-between gap-2 rounded-lg bg-white p-2 text-sm">
+                  <div>
+                    <p className="font-medium text-slate-900">{item.description}</p>
+                    <p className="text-xs text-slate-500">
+                      {item.brandOwner ? `${item.brandOwner} | ` : ""}
+                      {item.servingText || "Serving info unavailable"}
+                    </p>
+                  </div>
+                  <button className="btn-secondary" onClick={() => useFoodResult(item.fdcId)} disabled={foodLoadingId === item.fdcId}>
+                    {foodLoadingId === item.fdcId ? "Loading..." : "Use this food"}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="grid gap-2 md:grid-cols-5">
           <input className="input" placeholder="Food" value={form.food_name} onChange={(e) => setForm({ ...form, food_name: e.target.value })} />
           <input className="input" type="number" placeholder="Calories" value={form.calories} onChange={(e) => setForm({ ...form, calories: Number(e.target.value) })} />
