@@ -22,7 +22,8 @@ export function MessagingPanel({
   initialMessages,
   initialSelectedPeerId,
   initialPreset,
-  canUseTemplates
+  canUseTemplates,
+  initialUnreadByPeer
 }: {
   currentUserId: string;
   peers: Peer[];
@@ -30,6 +31,7 @@ export function MessagingPanel({
   initialSelectedPeerId?: string;
   initialPreset?: string;
   canUseTemplates?: boolean;
+  initialUnreadByPeer?: Record<string, number>;
 }) {
   const [selectedPeerId, setSelectedPeerId] = useState(initialSelectedPeerId || peers[0]?.id || "");
   const [messages, setMessages] = useState(initialMessages);
@@ -39,6 +41,7 @@ export function MessagingPanel({
       : ""
   );
   const [templates, setTemplates] = useState<MessageTemplate[]>([]);
+  const [unreadByPeer, setUnreadByPeer] = useState<Record<string, number>>(initialUnreadByPeer || {});
   const [templateTitle, setTemplateTitle] = useState("");
   const [templateBody, setTemplateBody] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -63,6 +66,14 @@ export function MessagingPanel({
       }
       return nextMessages;
     });
+    setUnreadByPeer((prev) => ({ ...prev, [peerId]: 0 }));
+  };
+
+  const loadUnread = async () => {
+    const res = await fetch("/api/messages/unread");
+    const payload = await res.json();
+    if (!res.ok) return;
+    setUnreadByPeer(payload.byPeer || {});
   };
 
   useEffect(() => {
@@ -72,6 +83,7 @@ export function MessagingPanel({
     const poll = async () => {
       if (cancelled) return;
       await loadConversation(selectedPeerId);
+      await loadUnread();
     };
 
     void poll();
@@ -101,6 +113,10 @@ export function MessagingPanel({
     };
     void loadTemplates();
   }, [canUseTemplates]);
+
+  useEffect(() => {
+    void loadUnread();
+  }, []);
 
   const uploadAttachment = async (file: File) => {
     const formData = new FormData();
@@ -192,6 +208,9 @@ export function MessagingPanel({
             <p className="text-xs text-slate-500">
               {peer.role} · {peer.email}
             </p>
+            {(unreadByPeer[peer.id] || 0) > 0 && (
+              <span className="mt-1 inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">{unreadByPeer[peer.id]} new</span>
+            )}
           </button>
         ))}
       </aside>

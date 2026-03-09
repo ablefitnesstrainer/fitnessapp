@@ -115,7 +115,7 @@ const links: NavLink[] = [
   }
 ];
 
-export function Navigation({ role }: { role: Role }) {
+export function Navigation({ role, unreadMessages = 0 }: { role: Role; unreadMessages?: number }) {
   const pathname = usePathname();
   const title = role === "client" ? "Client Portal" : role === "admin" ? "Admin Console" : "Coach Console";
   const subtitle =
@@ -152,6 +152,11 @@ export function Navigation({ role }: { role: Role }) {
             >
               {link.icon}
               {link.label}
+              {link.href === "/messages" && unreadMessages > 0 && (
+                <span className="ml-auto rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                  {unreadMessages > 99 ? "99+" : unreadMessages}
+                </span>
+              )}
             </Link>
           );
         })}

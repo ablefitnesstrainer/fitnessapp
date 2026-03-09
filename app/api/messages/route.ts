@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 
+const isMissingReadField = (code?: string) => code === "42703" || code === "PGRST204";
+
 export async function GET(request: Request) {
   const supabase = createClient();
   const {
@@ -12,6 +14,16 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const peerId = searchParams.get("peer_id");
   if (!peerId) return NextResponse.json({ error: "peer_id is required" }, { status: 400 });
+
+  const { error: readError } = await supabase
+    .from("messages")
+    .update({ read_at: new Date().toISOString() })
+    .eq("sender_id", peerId)
+    .eq("receiver_id", user.id)
+    .is("read_at", null);
+  if (readError && !isMissingReadField(readError.code)) {
+    return NextResponse.json({ error: readError.message }, { status: 400 });
+  }
 
   const { data: messages, error } = await supabase
     .from("messages")
@@ -53,6 +65,7 @@ export async function POST(request: Request) {
       sender_id: user.id,
       receiver_id: body.receiver_id,
       message: body.message?.trim() || "Attachment",
+      read_at: null,
       attachment_url: body.attachment_url || null,
       attachment_name: body.attachment_name || null,
       attachment_type: body.attachment_type || null,
