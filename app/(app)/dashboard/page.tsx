@@ -24,7 +24,12 @@ export default async function DashboardPage() {
       {user.role === "client" ? (
         <ClientDashboard workoutLogs={data.workoutLogs || []} mealLogs={data.mealLogs || []} checkins={data.checkins || []} />
       ) : (
-        <CoachDashboard clients={data.counts?.clients || 0} templates={data.counts?.templates || 0} checkins={data.checkins || []} />
+        <CoachDashboard
+          clients={data.counts?.clients || 0}
+          templates={data.counts?.templates || 0}
+          checkins={data.checkins || []}
+          priorityQueue={data.priorityQueue || []}
+        />
       )}
     </section>
   );
