@@ -40,11 +40,15 @@ type FoodSearchResult = {
 type FoodDetail = {
   description: string;
   servingText?: string | null;
+  servingSize?: number | null;
+  servingSizeUnit?: string | null;
   calories: number;
   protein: number;
   carbs: number;
   fat: number;
 };
+
+type ServingMode = "serving" | "100g";
 
 function dayKey(dateValue: string) {
   const date = new Date(dateValue);
@@ -102,6 +106,7 @@ export function NutritionTracker({
   const [searching, setSearching] = useState(false);
   const [foodLoadingId, setFoodLoadingId] = useState<number | null>(null);
   const [selectedFood, setSelectedFood] = useState<FoodDetail | null>(null);
+  const [servingMode, setServingMode] = useState<ServingMode>("serving");
   const [servings, setServings] = useState(1);
   const [status, setStatus] = useState<string | null>(null);
   const [savingTargets, setSavingTargets] = useState(false);
@@ -210,6 +215,7 @@ export function NutritionTracker({
     setMeals([data.meal, ...meals]);
     setForm({ food_name: "", calories: 0, protein: 0, carbs: 0, fat: 0 });
     setSelectedFood(null);
+    setServingMode("serving");
     setServings(1);
     setStatus("Meal logged.");
   };
@@ -253,6 +259,8 @@ export function NutritionTracker({
           ? {
               description: String(payload.food.description || ""),
               servingText: payload.food.servingText || null,
+              servingSize: payload.food.servingSize ? Number(payload.food.servingSize) : null,
+              servingSizeUnit: payload.food.servingSizeUnit ? String(payload.food.servingSizeUnit) : null,
               calories: Number(payload.food.calories) || 0,
               protein: Number(payload.food.protein) || 0,
               carbs: Number(payload.food.carbs) || 0,
@@ -266,6 +274,7 @@ export function NutritionTracker({
       }
 
       setSelectedFood(food);
+      setServingMode("serving");
       setServings(1);
       setForm({
         food_name: food.description,
@@ -282,16 +291,41 @@ export function NutritionTracker({
     }
   };
 
-  const applyServingMultiplier = (nextServings: number) => {
+  const selectedFoodSupportsPer100g =
+    Boolean(selectedFood?.servingSize && selectedFood.servingSize > 0) &&
+    (selectedFood?.servingSizeUnit || "").toLowerCase() === "g";
+
+  const computeFoodByMode = (food: FoodDetail, mode: ServingMode) => {
+    if (mode === "100g" && selectedFoodSupportsPer100g && food.servingSize) {
+      const factor = 100 / food.servingSize;
+      return {
+        calories: Math.max(0, Math.round(food.calories * factor)),
+        protein: Math.max(0, Math.round(food.protein * factor)),
+        carbs: Math.max(0, Math.round(food.carbs * factor)),
+        fat: Math.max(0, Math.round(food.fat * factor))
+      };
+    }
+
+    return {
+      calories: food.calories,
+      protein: food.protein,
+      carbs: food.carbs,
+      fat: food.fat
+    };
+  };
+
+  const applyServingMultiplier = (nextServings: number, mode: ServingMode = servingMode) => {
     if (!selectedFood) return;
+    const base = computeFoodByMode(selectedFood, mode);
     const safeServings = Number.isFinite(nextServings) && nextServings > 0 ? nextServings : 1;
     setServings(safeServings);
+    setServingMode(mode);
     setForm({
       food_name: selectedFood.description,
-      calories: Math.round(selectedFood.calories * safeServings),
-      protein: Math.round(selectedFood.protein * safeServings),
-      carbs: Math.round(selectedFood.carbs * safeServings),
-      fat: Math.round(selectedFood.fat * safeServings)
+      calories: Math.round(base.calories * safeServings),
+      protein: Math.round(base.protein * safeServings),
+      carbs: Math.round(base.carbs * safeServings),
+      fat: Math.round(base.fat * safeServings)
     });
   };
 
@@ -397,6 +431,24 @@ export function NutritionTracker({
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p className="text-sm font-medium text-slate-900">Serving Size</p>
             <p className="text-xs text-slate-500">{selectedFood.servingText || "Provider serving text unavailable"}</p>
+            {selectedFoodSupportsPer100g && (
+              <div className="mt-3 flex gap-2">
+                <button
+                  type="button"
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${servingMode === "serving" ? "bg-blue-600 text-white" : "bg-white text-slate-700 border border-slate-200"}`}
+                  onClick={() => applyServingMultiplier(servings, "serving")}
+                >
+                  Per Serving
+                </button>
+                <button
+                  type="button"
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${servingMode === "100g" ? "bg-blue-600 text-white" : "bg-white text-slate-700 border border-slate-200"}`}
+                  onClick={() => applyServingMultiplier(servings, "100g")}
+                >
+                  Per 100g
+                </button>
+              </div>
+            )}
             <div className="mt-2 w-40">
               <label className="label">Servings</label>
               <input className="input" type="number" min={0.25} step={0.25} value={servings} onChange={(e) => applyServingMultiplier(Number(e.target.value))} />
@@ -427,7 +479,7 @@ export function NutritionTracker({
         </div>
         <div className="flex flex-wrap gap-2">
           <button className="btn-primary" onClick={() => addMeal()}>
-            Add Meal
+            Add Food
           </button>
           <button className="btn-secondary" onClick={saveQuickMeal}>
             Save as Quick Meal
@@ -467,9 +519,14 @@ export function NutritionTracker({
                 <p className="font-medium text-slate-900">{meal.food_name}</p>
                 <p className="text-xs text-slate-500">{formatDate(meal.created_at)}</p>
               </div>
-              <span>
-                {meal.calories} kcal | P {meal.protein} C {meal.carbs} F {meal.fat}
-              </span>
+              <div className="flex items-center gap-3">
+                <span>
+                  {meal.calories} kcal | P {meal.protein} C {meal.carbs} F {meal.fat}
+                </span>
+                <button className="btn-secondary" onClick={() => addMeal({ food_name: meal.food_name, calories: meal.calories, protein: meal.protein, carbs: meal.carbs, fat: meal.fat })}>
+                  Add again
+                </button>
+              </div>
             </div>
           ))}
         </div>

@@ -10,6 +10,8 @@ export type UsdaSearchItem = {
 export type UsdaDetailItem = {
   description: string;
   servingText?: string | null;
+  servingSize?: number | null;
+  servingSizeUnit?: string | null;
   calories: number;
   protein: number;
   carbs: number;
@@ -165,6 +167,8 @@ export async function getFoodDetail(fdcId: string): Promise<UsdaDetailItem> {
   return {
     description: String(json?.description || "Unknown food"),
     servingText: servingTextFromAny(json || {}),
+    servingSize: json?.servingSize ? parseNumber(json.servingSize) : null,
+    servingSizeUnit: json?.servingSizeUnit ? String(json.servingSizeUnit) : null,
     calories: macros.calories,
     protein: macros.protein,
     carbs: macros.carbs,

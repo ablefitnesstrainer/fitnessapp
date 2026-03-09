@@ -65,6 +65,19 @@ export default async function ClientsPage() {
   if (bodyweightsError) throw bodyweightsError;
   if (checkinsError) throw checkinsError;
 
+  const sevenDaysAgoIso = new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString();
+  const [{ data: nutritionTargets, error: nutritionTargetsError }, { data: recentMeals, error: recentMealsError }] = await Promise.all([
+    (clients || []).length
+      ? supabase.from("nutrition_targets").select("client_id,calories,protein,carbs,fat").in("client_id", (clients || []).map((client) => client.id))
+      : Promise.resolve({ data: [], error: null }),
+    (clients || []).length
+      ? supabase.from("meal_logs").select("client_id,created_at,calories,protein,carbs,fat").in("client_id", (clients || []).map((client) => client.id)).gte("created_at", sevenDaysAgoIso)
+      : Promise.resolve({ data: [], error: null })
+  ]);
+
+  if (nutritionTargetsError) throw nutritionTargetsError;
+  if (recentMealsError) throw recentMealsError;
+
   const { data: intakes, error: intakesError } =
     (clients || []).length > 0
       ? await supabase
@@ -82,16 +95,39 @@ export default async function ClientsPage() {
   const intakeByClientId = new Map((intakes || []).map((intake) => [intake.client_id, intake]));
   const latestWeightByClientId = new Map<string, number>();
   const checkinsByClientId = new Map<string, { created_at: string; adherence: number | null; nutrition_adherence_percent: number | null }[]>();
+  const targetByClientId = new Map(
+    (nutritionTargets || []).map((target) => [
+      target.client_id,
+      { calories: Number(target.calories), protein: Number(target.protein), carbs: Number(target.carbs), fat: Number(target.fat) }
+    ])
+  );
+  const mealsByClientAndDay = new Map<string, { calories: number; protein: number; carbs: number; fat: number }>();
   for (const entry of bodyweights || []) {
     if (!latestWeightByClientId.has(entry.client_id)) {
       latestWeightByClientId.set(entry.client_id, Number(entry.weight));
     }
+  }
+  for (const meal of recentMeals || []) {
+    const day = new Date(meal.created_at).toISOString().slice(0, 10);
+    const key = `${meal.client_id}:${day}`;
+    const current = mealsByClientAndDay.get(key) || { calories: 0, protein: 0, carbs: 0, fat: 0 };
+    current.calories += Number(meal.calories) || 0;
+    current.protein += Number(meal.protein) || 0;
+    current.carbs += Number(meal.carbs) || 0;
+    current.fat += Number(meal.fat) || 0;
+    mealsByClientAndDay.set(key, current);
   }
   for (const entry of checkins || []) {
     const list = checkinsByClientId.get(entry.client_id) || [];
     list.push(entry);
     checkinsByClientId.set(entry.client_id, list);
   }
+
+  const dayKeys = Array.from({ length: 7 }).map((_, i) => {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    return d.toISOString().slice(0, 10);
+  });
 
   const rows = (clients || [])
     .filter((client) => {
@@ -119,6 +155,35 @@ export default async function ClientsPage() {
           : latestAdherence < previousAdherence
             ? "down"
             : "flat";
+    const target = targetByClientId.get(client.id) || null;
+    const sevenDayHitPercent =
+      target && target.calories > 0 && target.protein > 0 && target.carbs > 0 && target.fat > 0
+        ? Math.round(
+            (dayKeys.reduce((hits, day) => {
+              const dayTotals = mealsByClientAndDay.get(`${client.id}:${day}`);
+              if (!dayTotals) return hits;
+
+              const caloriesRatio = dayTotals.calories / target.calories;
+              const proteinRatio = dayTotals.protein / target.protein;
+              const carbsRatio = dayTotals.carbs / target.carbs;
+              const fatRatio = dayTotals.fat / target.fat;
+
+              const hit =
+                caloriesRatio >= 0.9 &&
+                caloriesRatio <= 1.1 &&
+                proteinRatio >= 0.9 &&
+                proteinRatio <= 1.1 &&
+                carbsRatio >= 0.85 &&
+                carbsRatio <= 1.15 &&
+                fatRatio >= 0.85 &&
+                fatRatio <= 1.15;
+
+              return hit ? hits + 1 : hits;
+            }, 0) /
+              7) *
+              100
+          )
+        : null;
 
     return {
       id: client.id,
@@ -134,6 +199,7 @@ export default async function ClientsPage() {
       lastCheckinAt: latestCheckin ? new Date(latestCheckin.created_at).toLocaleDateString() : "-",
       adherencePercent: latestAdherence,
       adherenceTrend,
+      sevenDayHitPercent,
       hasActiveProgram: assignedClientIds.has(client.id),
       createdAt: new Date(client.created_at).toLocaleDateString(),
       intakeSubmitted: Boolean(intake),

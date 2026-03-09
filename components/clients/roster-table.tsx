@@ -17,6 +17,7 @@ type RosterRow = {
   lastCheckinAt: string;
   adherencePercent: number | null;
   adherenceTrend: "up" | "down" | "flat" | "na";
+  sevenDayHitPercent: number | null;
   hasActiveProgram: boolean;
   createdAt: string;
   intakeSubmitted: boolean;
@@ -158,6 +159,7 @@ export function RosterTable({
               <th className="px-2 py-3 font-semibold">Weight</th>
               <th className="px-2 py-3 font-semibold">Last Check-in</th>
               <th className="px-2 py-3 font-semibold">Adherence Trend</th>
+              <th className="px-2 py-3 font-semibold">7d Nutrition Hit</th>
               <th className="px-2 py-3 font-semibold">Program</th>
               <th className="px-2 py-3 font-semibold">Intake</th>
               <th className="px-2 py-3 font-semibold">Created</th>
@@ -192,6 +194,23 @@ export function RosterTable({
                         }`}
                       >
                         {row.adherenceTrend === "up" ? "↑" : row.adherenceTrend === "down" ? "↓" : "→"} {row.adherencePercent}%
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-2 py-3">
+                    {row.sevenDayHitPercent === null ? (
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">No target</span>
+                    ) : (
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-semibold ${
+                          row.sevenDayHitPercent >= 80
+                            ? "bg-emerald-100 text-emerald-700"
+                            : row.sevenDayHitPercent >= 50
+                              ? "bg-amber-100 text-amber-700"
+                              : "bg-rose-100 text-rose-700"
+                        }`}
+                      >
+                        {row.sevenDayHitPercent}%
                       </span>
                     )}
                   </td>
