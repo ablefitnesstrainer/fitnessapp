@@ -204,6 +204,9 @@ export function RosterTable({
                   <td className="px-2 py-3">{row.createdAt}</td>
                   <td className="px-2 py-3">
                     <div className="flex min-w-[280px] flex-col gap-2">
+                      <Link href={`/clients/${row.id}`} className="btn-secondary text-center">
+                        Edit Profile
+                      </Link>
                       <Link href={`/messages?peer_id=${row.clientUserId}`} className="btn-secondary text-center">
                         Message
                       </Link>
