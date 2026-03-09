@@ -25,6 +25,24 @@ type UsdaSearchFood = {
   servingSizeUnit?: string | null;
 };
 
+type UsdaFoodNutrient = {
+  name?: string;
+  number?: string;
+  amount?: number | null;
+  value?: number | null;
+  nutrient?: {
+    name?: string;
+    number?: string;
+  } | null;
+};
+
+type UsdaLabelNutrients = {
+  calories?: { value?: number | null } | null;
+  protein?: { value?: number | null } | null;
+  carbohydrates?: { value?: number | null } | null;
+  fat?: { value?: number | null } | null;
+};
+
 function parseNumber(value: unknown) {
   const numeric = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(numeric)) return 0;
@@ -41,7 +59,7 @@ function servingTextFromAny(source: {
   return null;
 }
 
-function macroFromNutrients(nutrients: Array<{ name?: string; number?: string; amount?: number | null; value?: number | null }> | undefined) {
+function macroFromNutrients(nutrients: UsdaFoodNutrient[] | undefined) {
   const list = nutrients || [];
 
   const find = (pred: (n: { name?: string; number?: string }) => boolean) => {
@@ -50,12 +68,39 @@ function macroFromNutrients(nutrients: Array<{ name?: string; number?: string; a
     return Math.max(0, Math.round(parseNumber(amount)));
   };
 
+  const normalized = list.map((item) => ({
+    number: item.number || item.nutrient?.number,
+    name: item.name || item.nutrient?.name,
+    amount: item.amount ?? item.value
+  }));
+
   const calories = find((n) => n.number === "208" || (n.name || "").toLowerCase().includes("energy"));
   const protein = find((n) => n.number === "203" || (n.name || "").toLowerCase().includes("protein"));
   const carbs = find((n) => n.number === "205" || (n.name || "").toLowerCase().includes("carbohydrate"));
   const fat = find((n) => n.number === "204" || (n.name || "").toLowerCase().includes("total lipid") || (n.name || "").toLowerCase() === "fat");
 
-  return { calories, protein, carbs, fat };
+  // If find() on raw list fails for nested nutrient payloads, retry from normalized.
+  const findNormalized = (pred: (n: { name?: string; number?: string }) => boolean) => {
+    const match = normalized.find(pred);
+    return Math.max(0, Math.round(parseNumber(match?.amount)));
+  };
+
+  return {
+    calories: calories || findNormalized((n) => n.number === "208" || (n.name || "").toLowerCase().includes("energy")),
+    protein: protein || findNormalized((n) => n.number === "203" || (n.name || "").toLowerCase().includes("protein")),
+    carbs: carbs || findNormalized((n) => n.number === "205" || (n.name || "").toLowerCase().includes("carbohydrate")),
+    fat: fat || findNormalized((n) => n.number === "204" || (n.name || "").toLowerCase().includes("total lipid") || (n.name || "").toLowerCase() === "fat")
+  };
+}
+
+function macroFromLabelNutrients(labelNutrients: UsdaLabelNutrients | undefined) {
+  const label = labelNutrients || {};
+  return {
+    calories: Math.max(0, Math.round(parseNumber(label.calories?.value))),
+    protein: Math.max(0, Math.round(parseNumber(label.protein?.value))),
+    carbs: Math.max(0, Math.round(parseNumber(label.carbohydrates?.value))),
+    fat: Math.max(0, Math.round(parseNumber(label.fat?.value)))
+  };
 }
 
 async function fetchJson(url: string) {
@@ -109,7 +154,14 @@ export async function getFoodDetail(fdcId: string): Promise<UsdaDetailItem> {
   const url = `${USDA_BASE_URL}/food/${encodeURIComponent(fdcId)}?api_key=${encodeURIComponent(apiKey)}`;
   const json = await fetchJson(url);
 
-  const macros = macroFromNutrients(json?.foodNutrients);
+  const fromNutrients = macroFromNutrients(json?.foodNutrients);
+  const fromLabel = macroFromLabelNutrients(json?.labelNutrients);
+  const macros = {
+    calories: fromNutrients.calories || fromLabel.calories,
+    protein: fromNutrients.protein || fromLabel.protein,
+    carbs: fromNutrients.carbs || fromLabel.carbs,
+    fat: fromNutrients.fat || fromLabel.fat
+  };
   return {
     description: String(json?.description || "Unknown food"),
     servingText: servingTextFromAny(json || {}),
