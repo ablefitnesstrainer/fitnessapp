@@ -29,10 +29,21 @@ export default async function NutritionPage() {
     throw mealError;
   }
 
+  const { data: quickMeals, error: quickMealsError } = await supabase
+    .from("quick_meal_templates")
+    .select("*")
+    .eq("client_id", client.id)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (quickMealsError && quickMealsError.code !== "42P01" && quickMealsError.code !== "PGRST205") {
+    throw quickMealsError;
+  }
+
   return (
     <section className="space-y-4">
       <h1 className="text-2xl font-bold">Nutrition Tracking</h1>
-      <NutritionTracker clientId={client.id} target={target} initialMeals={meals || []} />
+      <NutritionTracker clientId={client.id} target={target} initialMeals={meals || []} initialQuickMeals={quickMeals || []} />
     </section>
   );
 }
