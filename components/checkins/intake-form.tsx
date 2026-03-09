@@ -4,6 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 type IntakePayload = {
+  age: number;
+  height: number;
+  current_weight: number;
   primary_goal: string;
   training_experience: string;
   injuries_or_limitations: string;
@@ -21,6 +24,9 @@ type IntakePayload = {
 export function IntakeForm({ clientId }: { clientId: string }) {
   const router = useRouter();
   const [form, setForm] = useState<IntakePayload>({
+    age: 30,
+    height: 68,
+    current_weight: 170,
     primary_goal: "",
     training_experience: "",
     injuries_or_limitations: "",
@@ -72,6 +78,26 @@ export function IntakeForm({ clientId }: { clientId: string }) {
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">
+        <div>
+          <label className="label">Age</label>
+          <input className="input" type="number" min={12} max={99} value={form.age} onChange={(e) => setForm({ ...form, age: Number(e.target.value) })} />
+        </div>
+        <div>
+          <label className="label">Height (inches)</label>
+          <input className="input" type="number" min={48} max={90} value={form.height} onChange={(e) => setForm({ ...form, height: Number(e.target.value) })} />
+        </div>
+        <div>
+          <label className="label">Current body weight</label>
+          <input
+            className="input"
+            type="number"
+            min={70}
+            max={600}
+            step={0.1}
+            value={form.current_weight}
+            onChange={(e) => setForm({ ...form, current_weight: Number(e.target.value) })}
+          />
+        </div>
         <div className="md:col-span-2">
           <label className="label">Primary goal</label>
           <input className="input" value={form.primary_goal} onChange={(e) => setForm({ ...form, primary_goal: e.target.value })} />

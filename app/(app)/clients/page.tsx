@@ -39,19 +39,23 @@ export default async function ClientsPage() {
       ? supabase.from("program_templates").select("id,name").order("name")
       : supabase.from("program_templates").select("id,name").eq("coach_id", currentUser.id).order("name");
 
-  const [{ data: users, error: usersError }, { data: assignments, error: assignmentsError }, { data: coaches, error: coachesError }, { data: templates, error: templatesError }] = await Promise.all([
+  const [{ data: users, error: usersError }, { data: assignments, error: assignmentsError }, { data: coaches, error: coachesError }, { data: templates, error: templatesError }, { data: bodyweights, error: bodyweightsError }] = await Promise.all([
     idsForLookup.length ? supabase.from("app_users").select("id,email,full_name,role").in("id", idsForLookup) : Promise.resolve({ data: [], error: null }),
     (clients || []).length
       ? supabase.from("program_assignments").select("client_id,active").in("client_id", (clients || []).map((client) => client.id)).eq("active", true)
       : Promise.resolve({ data: [], error: null }),
     coachesQuery,
-    templatesQuery
+    templatesQuery,
+    (clients || []).length
+      ? supabase.from("bodyweight_logs").select("client_id,weight,created_at").in("client_id", (clients || []).map((client) => client.id)).order("created_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null })
   ]);
 
   if (usersError) throw usersError;
   if (assignmentsError) throw assignmentsError;
   if (coachesError) throw coachesError;
   if (templatesError) throw templatesError;
+  if (bodyweightsError) throw bodyweightsError;
 
   const { data: intakes, error: intakesError } =
     (clients || []).length > 0
@@ -68,6 +72,12 @@ export default async function ClientsPage() {
   const userMap = new Map((users || []).map((user) => [user.id, user]));
   const assignedClientIds = new Set((assignments || []).map((assignment) => assignment.client_id));
   const intakeByClientId = new Map((intakes || []).map((intake) => [intake.client_id, intake]));
+  const latestWeightByClientId = new Map<string, number>();
+  for (const entry of bodyweights || []) {
+    if (!latestWeightByClientId.has(entry.client_id)) {
+      latestWeightByClientId.set(entry.client_id, Number(entry.weight));
+    }
+  }
 
   const rows = (clients || [])
     .filter((client) => {
@@ -89,6 +99,7 @@ export default async function ClientsPage() {
       equipment: client.equipment || "-",
       age: client.age ? String(client.age) : "-",
       height: client.height ? String(client.height) : "-",
+      weight: latestWeightByClientId.has(client.id) ? String(latestWeightByClientId.get(client.id)) : "-",
       hasActiveProgram: assignedClientIds.has(client.id),
       createdAt: new Date(client.created_at).toLocaleDateString(),
       intakeSubmitted: Boolean(intake),

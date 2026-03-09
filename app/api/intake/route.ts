@@ -11,6 +11,9 @@ export async function POST(request: Request) {
 
   const body = (await request.json()) as {
     client_id: string;
+    age: number;
+    height: number;
+    current_weight: number;
     primary_goal: string;
     training_experience: string;
     injuries_or_limitations: string;
@@ -49,6 +52,23 @@ export async function POST(request: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  const { error: clientsError } = await supabase
+    .from("clients")
+    .update({
+      age: body.age,
+      height: body.height
+    })
+    .eq("id", body.client_id);
+
+  if (clientsError) return NextResponse.json({ error: clientsError.message }, { status: 400 });
+
+  const { error: weightError } = await supabase.from("bodyweight_logs").insert({
+    client_id: body.client_id,
+    weight: body.current_weight
+  });
+
+  if (weightError) return NextResponse.json({ error: weightError.message }, { status: 400 });
 
   return NextResponse.json({ intake });
 }
