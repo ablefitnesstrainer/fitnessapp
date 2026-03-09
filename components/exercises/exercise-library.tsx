@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Exercise } from "@/types/db";
 
-export function ExerciseLibrary({ initialExercises }: { initialExercises: Exercise[] }) {
+export function ExerciseLibrary({ initialExercises, canImport }: { initialExercises: Exercise[]; canImport: boolean }) {
   const [exercises, setExercises] = useState(initialExercises);
   const [search, setSearch] = useState("");
   const [muscle, setMuscle] = useState("");
@@ -67,16 +67,20 @@ export function ExerciseLibrary({ initialExercises }: { initialExercises: Exerci
             </option>
           ))}
         </select>
-        <label className="btn-secondary cursor-pointer text-center">
-          {importing ? "Importing..." : "Import CSV"}
-          <input
-            type="file"
-            accept=".csv,text/csv"
-            className="hidden"
-            disabled={importing}
-            onChange={(e) => e.target.files?.[0] && onCsvUpload(e.target.files[0])}
-          />
-        </label>
+        {canImport ? (
+          <label className="btn-secondary cursor-pointer text-center">
+            {importing ? "Importing..." : "Import CSV"}
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              className="hidden"
+              disabled={importing}
+              onChange={(e) => e.target.files?.[0] && onCsvUpload(e.target.files[0])}
+            />
+          </label>
+        ) : (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-center text-sm font-medium text-slate-500">Read-only</div>
+        )}
       </div>
 
       {status && <p className="text-sm text-slate-700">{status}</p>}

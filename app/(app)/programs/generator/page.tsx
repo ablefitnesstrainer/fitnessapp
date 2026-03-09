@@ -6,6 +6,14 @@ import { getCurrentAppUser } from "@/services/auth-service";
 export default async function ProgramGeneratorPage() {
   const supabase = createClient();
   const appUser = await getCurrentAppUser();
+  if (appUser.role === "client") {
+    return (
+      <section className="space-y-4">
+        <h1 className="text-2xl font-bold">Program Generator</h1>
+        <p className="text-sm text-red-600">Only coach/admin accounts can access program generator.</p>
+      </section>
+    );
+  }
 
   const templatesQuery = supabase.from("program_templates").select("id,name").order("created_at", { ascending: false });
   const clientsQuery =

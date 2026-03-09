@@ -11,6 +11,7 @@ type NavLink = {
   href: string;
   label: string;
   icon: ReactNode;
+  roles?: Role[];
 };
 
 const iconClass = "h-4 w-4";
@@ -26,6 +27,7 @@ const links: NavLink[] = [
   {
     href: "/clients",
     label: "Clients",
+    roles: ["admin", "coach"],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className={iconClass}><path d="M6 8a3 3 0 116 0 3 3 0 01-6 0zm10 1a2.5 2.5 0 110-5 2.5 2.5 0 010 5zM3 19a6 6 0 0112 0m1 0c.4-2.3 2.4-4 4.8-4" stroke="currentColor" strokeWidth="1.7"/></svg>
     )
@@ -47,6 +49,7 @@ const links: NavLink[] = [
   {
     href: "/programs/templates",
     label: "Templates",
+    roles: ["admin", "coach"],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className={iconClass}><path d="M6 4h12v16H6V4zm3 4h6M9 12h6" stroke="currentColor" strokeWidth="1.7"/></svg>
     )
@@ -54,6 +57,7 @@ const links: NavLink[] = [
   {
     href: "/programs/generator",
     label: "Generator",
+    roles: ["admin", "coach"],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className={iconClass}><path d="M4 12h16M12 4l8 8-8 8" stroke="currentColor" strokeWidth="1.7"/></svg>
     )
@@ -96,6 +100,7 @@ const links: NavLink[] = [
   {
     href: "/admin/users",
     label: "Admin Users",
+    roles: ["admin"],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className={iconClass}><path d="M12 12a4 4 0 100-8 4 4 0 000 8zm-7 9a7 7 0 0114 0" stroke="currentColor" strokeWidth="1.7"/></svg>
     )
@@ -109,6 +114,8 @@ export function Navigation({ role }: { role: Role }) {
     role === "client"
       ? "Training, nutrition, and check-ins in one place."
       : "Programs, progress, and accountability in one place.";
+
+  const visibleLinks = links.filter((link) => !link.roles || link.roles.includes(role));
 
   return (
     <aside className="sticky top-0 hidden h-screen w-72 shrink-0 border-r border-slate-200/80 bg-white/85 p-5 backdrop-blur lg:block">
@@ -124,7 +131,7 @@ export function Navigation({ role }: { role: Role }) {
       </div>
 
       <nav className="space-y-1.5">
-        {links.map((link) => {
+        {visibleLinks.map((link) => {
           const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
           return (
             <Link
