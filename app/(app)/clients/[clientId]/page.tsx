@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { ClientProfileEditor } from "@/components/clients/client-profile-editor";
+import { ClientProgressPanel } from "@/components/clients/client-progress-panel";
 import { createClient } from "@/lib/supabase-server";
 import { displayNameFromIdentity } from "@/lib/display-name";
 import { getCurrentAppUser } from "@/services/auth-service";
@@ -42,33 +43,36 @@ export default async function ClientEditPage({ params }: { params: { clientId: s
   });
 
   return (
-    <ClientProfileEditor
-      clientId={client.id}
-      clientName={clientName}
-      initial={{
-        age: client.age ?? null,
-        height: client.height ?? null,
-        goal: client.goal ?? "",
-        equipment: client.equipment ?? "",
-        currentWeight: weightRow?.weight ? Number(weightRow.weight) : null,
-        sexAtBirth: intake?.sex_at_birth === "female" ? "female" : "male",
-        primaryGoal: intake?.primary_goal ?? "",
-        trainingExperience: intake?.training_experience ?? "",
-        injuriesOrLimitations: intake?.injuries_or_limitations ?? "",
-        equipmentAccess: intake?.equipment_access ?? "",
-        daysPerWeek: intake?.days_per_week ?? null,
-        sessionLengthMinutes: intake?.session_length_minutes ?? null,
-        nutritionPreferences: intake?.nutrition_preferences ?? "",
-        dietaryRestrictions: intake?.dietary_restrictions ?? "",
-        stressLevel: intake?.stress_level ?? null,
-        sleepHours: intake?.sleep_hours ?? null,
-        readinessToChange: intake?.readiness_to_change ?? null,
-        supportNotes: intake?.support_notes ?? "",
-        calories: targetRow?.calories ?? null,
-        protein: targetRow?.protein ?? null,
-        carbs: targetRow?.carbs ?? null,
-        fat: targetRow?.fat ?? null
-      }}
-    />
+    <section className="space-y-4">
+      <ClientProfileEditor
+        clientId={client.id}
+        clientName={clientName}
+        initial={{
+          age: client.age ?? null,
+          height: client.height ?? null,
+          goal: client.goal ?? "",
+          equipment: client.equipment ?? "",
+          currentWeight: weightRow?.weight ? Number(weightRow.weight) : null,
+          sexAtBirth: intake?.sex_at_birth === "female" ? "female" : "male",
+          primaryGoal: intake?.primary_goal ?? "",
+          trainingExperience: intake?.training_experience ?? "",
+          injuriesOrLimitations: intake?.injuries_or_limitations ?? "",
+          equipmentAccess: intake?.equipment_access ?? "",
+          daysPerWeek: intake?.days_per_week ?? null,
+          sessionLengthMinutes: intake?.session_length_minutes ?? null,
+          nutritionPreferences: intake?.nutrition_preferences ?? "",
+          dietaryRestrictions: intake?.dietary_restrictions ?? "",
+          stressLevel: intake?.stress_level ?? null,
+          sleepHours: intake?.sleep_hours ?? null,
+          readinessToChange: intake?.readiness_to_change ?? null,
+          supportNotes: intake?.support_notes ?? "",
+          calories: targetRow?.calories ?? null,
+          protein: targetRow?.protein ?? null,
+          carbs: targetRow?.carbs ?? null,
+          fat: targetRow?.fat ?? null
+        }}
+      />
+      <ClientProgressPanel clientId={client.id} />
+    </section>
   );
 }

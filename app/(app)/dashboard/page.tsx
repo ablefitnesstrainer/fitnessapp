@@ -29,6 +29,7 @@ export default async function DashboardPage() {
           templates={data.counts?.templates || 0}
           checkins={data.checkins || []}
           priorityQueue={data.priorityQueue || []}
+          overdueCheckins={data.overdueCheckins || []}
         />
       )}
     </section>

@@ -10,7 +10,8 @@ export function CoachDashboard({
   clients,
   templates,
   checkins,
-  priorityQueue
+  priorityQueue,
+  overdueCheckins
 }: {
   clients: number;
   templates: number;
@@ -24,6 +25,12 @@ export function CoachDashboard({
     lastCheckinAt: string;
     adherencePercent: number | null;
     reasons: string[];
+  }[];
+  overdueCheckins: {
+    clientId: string;
+    clientUserId: string;
+    clientName: string;
+    daysSinceCheckin: number | null;
   }[];
 }) {
   const chartData = {
@@ -53,6 +60,18 @@ export function CoachDashboard({
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Program Templates</p>
           <p className="mt-1 text-4xl font-bold text-slate-900">{templates}</p>
           <p className="mt-2 text-sm text-slate-600">Reusable structures available for client assignment.</p>
+        </div>
+        <div className="card md:col-span-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Overdue Check-ins (7+ days)</p>
+          <p className="mt-1 text-3xl font-bold text-slate-900">{overdueCheckins.length}</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {overdueCheckins.slice(0, 6).map((item) => (
+              <Link key={item.clientId} href={`/messages?peer_id=${item.clientUserId}`} className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">
+                {item.clientName} {item.daysSinceCheckin === null ? "(No check-in)" : `(${item.daysSinceCheckin}d)`}
+              </Link>
+            ))}
+            {overdueCheckins.length === 0 && <p className="text-sm text-slate-600">No overdue check-ins right now.</p>}
+          </div>
         </div>
       </div>
       <div className="card">

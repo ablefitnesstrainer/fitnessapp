@@ -84,6 +84,32 @@ export async function getDashboardData() {
 
   const now = Date.now();
   const dayMs = 1000 * 60 * 60 * 24;
+  const overdueCheckins = roster
+    .map((client) => {
+      const identity = userById.get(client.user_id);
+      if (!identity || identity.role !== "client") return null;
+      const latest = (checkinsByClientId.get(client.id) || [])[0];
+      const daysSinceCheckin = latest ? Math.floor((now - new Date(latest.created_at).getTime()) / dayMs) : null;
+      if (daysSinceCheckin === null || daysSinceCheckin >= 7) {
+        return {
+          clientId: client.id,
+          clientUserId: client.user_id,
+          clientName: displayNameFromIdentity({
+            fullName: identity.full_name,
+            email: identity.email,
+            fallbackId: identity.id
+          }),
+          daysSinceCheckin: daysSinceCheckin === null ? null : daysSinceCheckin
+        };
+      }
+      return null;
+    })
+    .filter(
+      (item): item is { clientId: string; clientUserId: string; clientName: string; daysSinceCheckin: number | null } => Boolean(item)
+    )
+    .sort((a, b) => (b.daysSinceCheckin || 999) - (a.daysSinceCheckin || 999))
+    .slice(0, 12);
+
   const priorityQueue = roster
     .map((client) => {
       const identity = userById.get(client.user_id);
@@ -158,6 +184,7 @@ export async function getDashboardData() {
       templates: templatesRes.count ?? 0
     },
     checkins: checkinsRes.data,
-    priorityQueue
+    priorityQueue,
+    overdueCheckins
   };
 }
