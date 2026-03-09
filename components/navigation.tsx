@@ -63,6 +63,14 @@ const links: NavLink[] = [
     )
   },
   {
+    href: "/habits",
+    label: "Habits",
+    roles: ["client"],
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}><path d="M12 3l6 3v5c0 4-2.5 7-6 10-3.5-3-6-6-6-10V6l6-3zm-3 9l2 2 4-4" stroke="currentColor" strokeWidth="1.7"/></svg>
+    )
+  },
+  {
     href: "/nutrition",
     label: "Nutrition",
     icon: (

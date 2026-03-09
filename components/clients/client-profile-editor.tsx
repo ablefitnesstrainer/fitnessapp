@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { HabitManager } from "@/components/habits/habit-manager";
 
 type Props = {
   clientId: string;
@@ -187,6 +188,14 @@ export function ClientProfileEditor({ clientId, clientName, initial }: Props) {
         <button className="btn-secondary" onClick={recalculateTargets} disabled={saving}>
           Recalculate with Mifflin-St Jeor
         </button>
+      </div>
+
+      <div className="card space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Habit Plan</h2>
+          <p className="text-sm text-slate-600">Set accountability habits for this client. They can add personal habits in their own portal.</p>
+        </div>
+        <HabitManager clientId={clientId} mode="coach" />
       </div>
 
       <div className="card space-y-5">
