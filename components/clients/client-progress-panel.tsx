@@ -185,6 +185,7 @@ export function ClientProgressPanel({ clientId }: { clientId: string }) {
               className="input"
               type="file"
               accept="image/png,image/jpeg,image/webp"
+              capture="environment"
               onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
             />
             <button className="btn-primary" onClick={uploadPhotoFile} disabled={pending === "photo-upload"}>

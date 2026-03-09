@@ -188,6 +188,7 @@ export function CheckinForm({ clientId, initialCheckins }: { clientId: string; i
                   className="input max-w-xs"
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
+                  capture="environment"
                   onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
                 />
                 <button className="btn-secondary" onClick={uploadProgressPhoto} disabled={photoUploading}>
