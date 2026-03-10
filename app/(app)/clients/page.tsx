@@ -66,17 +66,25 @@ export default async function ClientsPage() {
   if (checkinsError) throw checkinsError;
 
   const sevenDaysAgoIso = new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString();
-  const [{ data: nutritionTargets, error: nutritionTargetsError }, { data: recentMeals, error: recentMealsError }] = await Promise.all([
+  const [{ data: nutritionTargets, error: nutritionTargetsError }, { data: recentMeals, error: recentMealsError }, { data: contracts, error: contractsError }] = await Promise.all([
     (clients || []).length
       ? supabase.from("nutrition_targets").select("client_id,calories,protein,carbs,fat").in("client_id", (clients || []).map((client) => client.id))
       : Promise.resolve({ data: [], error: null }),
     (clients || []).length
       ? supabase.from("meal_logs").select("client_id,created_at,calories,protein,carbs,fat").in("client_id", (clients || []).map((client) => client.id)).gte("created_at", sevenDaysAgoIso)
+      : Promise.resolve({ data: [], error: null }),
+    (clients || []).length
+      ? supabase
+          .from("client_contracts")
+          .select("id,client_id,document_id,document_slug,status,sent_at,opened_at,completed_at,created_at")
+          .in("client_id", (clients || []).map((client) => client.id))
+          .order("created_at", { ascending: false })
       : Promise.resolve({ data: [], error: null })
   ]);
 
   if (nutritionTargetsError) throw nutritionTargetsError;
   if (recentMealsError) throw recentMealsError;
+  if (contractsError) throw contractsError;
 
   const { data: intakes, error: intakesError } =
     (clients || []).length > 0
@@ -93,6 +101,16 @@ export default async function ClientsPage() {
   const userMap = new Map((users || []).map((user) => [user.id, user]));
   const assignedClientIds = new Set((assignments || []).map((assignment) => assignment.client_id));
   const intakeByClientId = new Map((intakes || []).map((intake) => [intake.client_id, intake]));
+  const latestContractByClientId = new Map<string, {
+    id: string;
+    documentId: number;
+    documentSlug: string | null;
+    status: string;
+    sentAt: string | null;
+    openedAt: string | null;
+    completedAt: string | null;
+    createdAt: string;
+  }>();
   const latestWeightByClientId = new Map<string, number>();
   const checkinsByClientId = new Map<string, { created_at: string; adherence: number | null; nutrition_adherence_percent: number | null }[]>();
   const targetByClientId = new Map(
@@ -121,6 +139,20 @@ export default async function ClientsPage() {
     const list = checkinsByClientId.get(entry.client_id) || [];
     list.push(entry);
     checkinsByClientId.set(entry.client_id, list);
+  }
+  for (const contract of contracts || []) {
+    if (!latestContractByClientId.has(contract.client_id)) {
+      latestContractByClientId.set(contract.client_id, {
+        id: contract.id,
+        documentId: contract.document_id,
+        documentSlug: contract.document_slug,
+        status: contract.status,
+        sentAt: contract.sent_at,
+        openedAt: contract.opened_at,
+        completedAt: contract.completed_at,
+        createdAt: contract.created_at
+      });
+    }
   }
 
   const dayKeys = Array.from({ length: 7 }).map((_, i) => {
@@ -202,6 +234,7 @@ export default async function ClientsPage() {
       sevenDayHitPercent,
       hasActiveProgram: assignedClientIds.has(client.id),
       createdAt: new Date(client.created_at).toLocaleDateString(),
+      contract: latestContractByClientId.get(client.id) || null,
       intakeSubmitted: Boolean(intake),
       intakeSummary: intake
         ? {
@@ -229,6 +262,8 @@ export default async function ClientsPage() {
   }));
 
   const templateOptions = (templates || []).map((template) => ({ id: template.id, name: template.name }));
+  const contractsSentCount = rows.filter((row) => Boolean(row.contract)).length;
+  const contractsCompletedCount = rows.filter((row) => row.contract?.status === "completed").length;
 
   return (
     <section className="space-y-4">
@@ -250,6 +285,16 @@ export default async function ClientsPage() {
         <div className="card">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Unassigned Programs</p>
           <p className="mt-1 text-3xl font-bold">{rows.filter((r) => !r.hasActiveProgram).length}</p>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="card">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Contracts Sent</p>
+          <p className="mt-1 text-3xl font-bold">{contractsSentCount}</p>
+        </div>
+        <div className="card">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Contracts Completed</p>
+          <p className="mt-1 text-3xl font-bold">{contractsCompletedCount}</p>
         </div>
       </div>
 

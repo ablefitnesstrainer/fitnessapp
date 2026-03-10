@@ -20,6 +20,16 @@ type RosterRow = {
   sevenDayHitPercent: number | null;
   hasActiveProgram: boolean;
   createdAt: string;
+  contract: {
+    id: string;
+    documentId: number;
+    documentSlug: string | null;
+    status: string;
+    sentAt: string | null;
+    openedAt: string | null;
+    completedAt: string | null;
+    createdAt: string;
+  } | null;
   intakeSubmitted: boolean;
   intakeSummary: {
     primaryGoal: string;
@@ -60,6 +70,9 @@ export function RosterTable({
     Object.fromEntries(rows.map((row) => [row.id, templates[0]?.id ?? ""]))
   );
   const [assignedProgramIds, setAssignedProgramIds] = useState<Set<string>>(new Set(rows.filter((r) => r.hasActiveProgram).map((r) => r.id)));
+  const [contractsByClientId, setContractsByClientId] = useState<Record<string, RosterRow["contract"]>>(() =>
+    Object.fromEntries(rows.map((row) => [row.id, row.contract]))
+  );
   const [status, setStatus] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
 
@@ -143,6 +156,71 @@ export function RosterTable({
     setPending(null);
   };
 
+  const sendContract = async (clientId: string, clientName: string) => {
+    setPending(`contract-send-${clientId}`);
+    setStatus(null);
+
+    const res = await fetch("/api/contracts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_id: clientId })
+    });
+
+    const payload = await res.json();
+    if (!res.ok) {
+      setStatus(payload.error || `Failed to send contract for ${clientName}`);
+      setPending(null);
+      return;
+    }
+
+    const updated = payload.contract
+      ? {
+          id: payload.contract.id as string,
+          documentId: Number(payload.contract.document_id),
+          documentSlug: (payload.contract.document_slug as string | null) ?? null,
+          status: (payload.contract.status as string) ?? "sent",
+          sentAt: (payload.contract.sent_at as string | null) ?? null,
+          openedAt: (payload.contract.opened_at as string | null) ?? null,
+          completedAt: (payload.contract.completed_at as string | null) ?? null,
+          createdAt: (payload.contract.created_at as string) ?? new Date().toISOString()
+        }
+      : null;
+
+    setContractsByClientId((prev) => ({ ...prev, [clientId]: updated }));
+    setStatus(`Contract sent to ${clientName}.`);
+    setPending(null);
+  };
+
+  const refreshContract = async (clientId: string, clientName: string) => {
+    setPending(`contract-refresh-${clientId}`);
+    setStatus(null);
+
+    const res = await fetch(`/api/contracts?client_id=${encodeURIComponent(clientId)}&refresh=1`, { cache: "no-store" });
+    const payload = await res.json();
+    if (!res.ok) {
+      setStatus(payload.error || `Failed to refresh contract for ${clientName}`);
+      setPending(null);
+      return;
+    }
+
+    const updated = payload.contract
+      ? {
+          id: payload.contract.id as string,
+          documentId: Number(payload.contract.document_id),
+          documentSlug: (payload.contract.document_slug as string | null) ?? null,
+          status: (payload.contract.status as string) ?? "sent",
+          sentAt: (payload.contract.sent_at as string | null) ?? null,
+          openedAt: (payload.contract.opened_at as string | null) ?? null,
+          completedAt: (payload.contract.completed_at as string | null) ?? null,
+          createdAt: (payload.contract.created_at as string) ?? new Date().toISOString()
+        }
+      : null;
+
+    setContractsByClientId((prev) => ({ ...prev, [clientId]: updated }));
+    setStatus(`Contract status refreshed for ${clientName}.`);
+    setPending(null);
+  };
+
   return (
     <div className="space-y-3">
       {status && <p className="text-sm text-slate-700">{status}</p>}
@@ -162,6 +240,7 @@ export function RosterTable({
               <th className="px-2 py-3 font-semibold">7d Nutrition Hit</th>
               <th className="px-2 py-3 font-semibold">Program</th>
               <th className="px-2 py-3 font-semibold">Intake</th>
+              <th className="px-2 py-3 font-semibold">Contract</th>
               <th className="px-2 py-3 font-semibold">Created</th>
               <th className="px-2 py-3 font-semibold">Actions</th>
             </tr>
@@ -170,6 +249,22 @@ export function RosterTable({
             {localRows.map((row) => {
               const selectedCoachId = coachSelections[row.id] || "";
               const selectedTemplateId = templateSelections[row.id] || "";
+              const contract = contractsByClientId[row.id] ?? null;
+              const contractStatus = contract?.status || "not_sent";
+              const contractBadgeClass =
+                contractStatus === "completed"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : contractStatus === "opened" || contractStatus === "viewed"
+                    ? "bg-blue-100 text-blue-700"
+                    : contractStatus === "sent"
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-slate-100 text-slate-600";
+              const contractLabel = contractStatus.replaceAll("_", " ");
+              const contractUrl = contract?.documentSlug
+                ? `https://breezedoc.com/documents/${contract.documentSlug}/view`
+                : contract?.documentId
+                  ? `https://breezedoc.com/documents/${contract.documentId}/view`
+                  : null;
               return (
                 <tr key={row.id} className="border-b border-slate-100 text-slate-700 align-top">
                   <td className="px-2 py-3 font-semibold text-slate-900">{row.clientName}</td>
@@ -243,6 +338,13 @@ export function RosterTable({
                       <span className="rounded-full bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800">Not submitted</span>
                     )}
                   </td>
+                  <td className="px-2 py-3">
+                    <div className="space-y-1 text-xs">
+                      <span className={`inline-flex rounded-full px-2 py-1 font-semibold capitalize ${contractBadgeClass}`}>{contractLabel}</span>
+                      {contract?.completedAt && <p className="text-slate-500">Completed {new Date(contract.completedAt).toLocaleDateString()}</p>}
+                      {!contract?.completedAt && contract?.sentAt && <p className="text-slate-500">Sent {new Date(contract.sentAt).toLocaleDateString()}</p>}
+                    </div>
+                  </td>
                   <td className="px-2 py-3">{row.createdAt}</td>
                   <td className="px-2 py-3">
                     <div className="flex min-w-[280px] flex-col gap-2">
@@ -297,6 +399,20 @@ export function RosterTable({
                       <button className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100" onClick={() => deleteClient(row.id, row.clientName)} disabled={pending === `delete-${row.id}`}>
                         {pending === `delete-${row.id}` ? "Deleting..." : "Delete Client"}
                       </button>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <button className="btn-secondary" onClick={() => sendContract(row.id, row.clientName)} disabled={pending === `contract-send-${row.id}`}>
+                          {pending === `contract-send-${row.id}` ? "Sending..." : contract ? "Resend Contract" : "Send Contract"}
+                        </button>
+                        <button className="btn-secondary" onClick={() => refreshContract(row.id, row.clientName)} disabled={pending === `contract-refresh-${row.id}`}>
+                          {pending === `contract-refresh-${row.id}` ? "Refreshing..." : "Refresh Status"}
+                        </button>
+                      </div>
+                      {contractUrl && (
+                        <a href={contractUrl} target="_blank" rel="noreferrer" className="btn-secondary text-center">
+                          Open Contract
+                        </a>
+                      )}
                     </div>
                   </td>
                 </tr>
