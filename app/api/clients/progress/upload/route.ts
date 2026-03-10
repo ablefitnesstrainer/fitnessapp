@@ -70,15 +70,18 @@ export async function POST(request: Request) {
     upsert: false
   });
   if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 400 });
-
-  const { data: publicUrlData } = admin.storage.from("progress-photos").getPublicUrl(storagePath);
-  const photoUrl = publicUrlData.publicUrl;
+  const { data: signedUrlData, error: signedUrlError } = await admin.storage.from("progress-photos").createSignedUrl(storagePath, 60 * 60);
+  if (signedUrlError) {
+    await admin.storage.from("progress-photos").remove([storagePath]);
+    return NextResponse.json({ error: signedUrlError.message }, { status: 400 });
+  }
+  const photoUrl = signedUrlData.signedUrl;
 
   const { data: photo, error: insertError } = await supabase
     .from("progress_photos")
     .insert({
       client_id: auth.clientId,
-      photo_url: photoUrl,
+      photo_url: null,
       storage_path: storagePath,
       caption: caption || null,
       taken_at: takenAt || new Date().toISOString().slice(0, 10),

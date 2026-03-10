@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 
 type Photo = {
   id: string;
-  photo_url: string;
+  photo_url?: string | null;
   caption?: string | null;
   taken_at: string;
   created_at: string;
@@ -205,7 +205,11 @@ export function ClientProgressPanel({ clientId }: { clientId: string }) {
           <div className="grid gap-3 md:grid-cols-2">
             {photos.map((photo) => (
               <div key={photo.id} className="rounded-xl border border-slate-200 bg-slate-50 p-2">
-                <img src={photo.photo_url} alt={photo.caption || "Progress photo"} className="h-44 w-full rounded-lg object-cover" />
+                {photo.photo_url ? (
+                  <img src={photo.photo_url} alt={photo.caption || "Progress photo"} className="h-44 w-full rounded-lg object-cover" />
+                ) : (
+                  <div className="grid h-44 w-full place-items-center rounded-lg bg-slate-200 text-xs font-semibold text-slate-500">Photo unavailable</div>
+                )}
                 <div className="mt-2 flex items-center justify-between gap-2">
                   <div>
                     <p className="text-xs font-semibold text-slate-700">{photo.taken_at ? new Date(photo.taken_at).toLocaleDateString() : "-"}</p>
@@ -253,8 +257,12 @@ export function ClientProgressPanel({ clientId }: { clientId: string }) {
           <h3 className="mb-3 text-lg font-semibold">Side-by-Side Compare</h3>
           <div className="grid gap-3 md:grid-cols-2">
             {selectedCompare.map((photo) => (
-              <figure key={photo.id} className="rounded-xl border border-slate-200 bg-slate-50 p-2">
-                <img src={photo.photo_url} alt={photo.caption || "Progress comparison photo"} className="h-80 w-full rounded-lg object-cover" />
+            <figure key={photo.id} className="rounded-xl border border-slate-200 bg-slate-50 p-2">
+                {photo.photo_url ? (
+                  <img src={photo.photo_url} alt={photo.caption || "Progress comparison photo"} className="h-80 w-full rounded-lg object-cover" />
+                ) : (
+                  <div className="grid h-80 w-full place-items-center rounded-lg bg-slate-200 text-xs font-semibold text-slate-500">Photo unavailable</div>
+                )}
                 <figcaption className="mt-2 text-xs text-slate-600">
                   {new Date(photo.taken_at).toLocaleDateString()} {photo.caption ? `| ${photo.caption}` : ""}
                 </figcaption>

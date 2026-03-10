@@ -22,7 +22,7 @@ type Checkin = {
 
 export function CheckinForm({ clientId, initialCheckins }: { clientId: string; initialCheckins: Checkin[] }) {
   const [checkins, setCheckins] = useState(initialCheckins);
-  const [recentPhotos, setRecentPhotos] = useState<Array<{ id: string; photo_url: string; taken_at: string; caption?: string | null }>>([]);
+  const [recentPhotos, setRecentPhotos] = useState<Array<{ id: string; photo_url?: string | null; taken_at: string; caption?: string | null }>>([]);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [form, setForm] = useState({
@@ -198,7 +198,13 @@ export function CheckinForm({ clientId, initialCheckins }: { clientId: string; i
               {recentPhotos.length > 0 && (
                 <div className="mt-3 grid gap-2 md:grid-cols-3">
                   {recentPhotos.map((photo) => (
-                    <img key={photo.id} src={photo.photo_url} alt={photo.caption || "Progress photo"} className="h-24 w-full rounded-lg object-cover" />
+                    <div key={photo.id} className="h-24 w-full overflow-hidden rounded-lg bg-slate-200">
+                      {photo.photo_url ? (
+                        <img src={photo.photo_url} alt={photo.caption || "Progress photo"} className="h-24 w-full rounded-lg object-cover" />
+                      ) : (
+                        <div className="grid h-full place-items-center text-xs font-semibold text-slate-500">Unavailable</div>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}

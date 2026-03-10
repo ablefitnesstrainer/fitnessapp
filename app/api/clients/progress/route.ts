@@ -47,7 +47,29 @@ export async function GET(request: Request) {
   if (photosRes.error) return NextResponse.json({ error: photosRes.error.message }, { status: 400 });
   if (notesRes.error) return NextResponse.json({ error: notesRes.error.message }, { status: 400 });
 
-  return NextResponse.json({ photos: photosRes.data || [], notes: notesRes.data || [] });
+  const photos = photosRes.data || [];
+  const signedByPath = new Map<string, string>();
+  const paths = photos.map((photo) => photo.storage_path).filter((path): path is string => Boolean(path));
+  if (paths.length > 0) {
+    try {
+      const admin = createAdminClient();
+      const signed = await admin.storage.from("progress-photos").createSignedUrls(paths, 60 * 60);
+      if (!signed.error && Array.isArray(signed.data)) {
+        signed.data.forEach((item, index) => {
+          if (!item.error && item.signedUrl) signedByPath.set(paths[index], item.signedUrl);
+        });
+      }
+    } catch {
+      // If admin client is unavailable, fall back to legacy URLs when present.
+    }
+  }
+
+  const normalizedPhotos = photos.map((photo) => ({
+    ...photo,
+    photo_url: photo.storage_path ? signedByPath.get(photo.storage_path) || null : photo.photo_url || null
+  }));
+
+  return NextResponse.json({ photos: normalizedPhotos, notes: notesRes.data || [] });
 }
 
 export async function POST(request: Request) {

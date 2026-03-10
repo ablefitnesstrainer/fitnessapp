@@ -43,10 +43,15 @@ export async function POST(request: Request) {
   });
   if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 400 });
 
-  const { data: publicUrlData } = admin.storage.from("message-attachments").getPublicUrl(storagePath);
+  const { data: signedUrlData, error: signedUrlError } = await admin.storage.from("message-attachments").createSignedUrl(storagePath, 60 * 60);
+  if (signedUrlError) {
+    await admin.storage.from("message-attachments").remove([storagePath]);
+    return NextResponse.json({ error: signedUrlError.message }, { status: 400 });
+  }
+
   return NextResponse.json({
     attachment: {
-      url: publicUrlData.publicUrl,
+      url: signedUrlData.signedUrl,
       path: storagePath,
       name: file.name,
       type: file.type,

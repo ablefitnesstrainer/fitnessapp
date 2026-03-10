@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 
 const isMissingReadField = (code?: string) => code === "42703" || code === "PGRST204";
 
@@ -33,7 +34,29 @@ export async function GET(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  return NextResponse.json({ messages });
+  const list = messages || [];
+  const paths = list.map((message) => message.attachment_path).filter((path): path is string => Boolean(path));
+  const signedByPath = new Map<string, string>();
+  if (paths.length > 0) {
+    try {
+      const admin = createAdminClient();
+      const signed = await admin.storage.from("message-attachments").createSignedUrls(paths, 60 * 60);
+      if (!signed.error && Array.isArray(signed.data)) {
+        signed.data.forEach((item, index) => {
+          if (!item.error && item.signedUrl) signedByPath.set(paths[index], item.signedUrl);
+        });
+      }
+    } catch {
+      // If admin client is unavailable, fall back to persisted URLs when present.
+    }
+  }
+
+  const normalized = list.map((message) => ({
+    ...message,
+    attachment_url: message.attachment_path ? signedByPath.get(message.attachment_path) || null : message.attachment_url || null
+  }));
+
+  return NextResponse.json({ messages: normalized });
 }
 
 export async function POST(request: Request) {
@@ -55,7 +78,7 @@ export async function POST(request: Request) {
   };
 
   if (!body.receiver_id) return NextResponse.json({ error: "receiver_id is required" }, { status: 400 });
-  if (!body.message?.trim() && !body.attachment_url) {
+  if (!body.message?.trim() && !body.attachment_url && !body.attachment_path) {
     return NextResponse.json({ error: "Message text or attachment is required" }, { status: 400 });
   }
 
@@ -66,7 +89,7 @@ export async function POST(request: Request) {
       receiver_id: body.receiver_id,
       message: body.message?.trim() || "Attachment",
       read_at: null,
-      attachment_url: body.attachment_url || null,
+      attachment_url: null,
       attachment_name: body.attachment_name || null,
       attachment_type: body.attachment_type || null,
       attachment_size: body.attachment_size || null,
