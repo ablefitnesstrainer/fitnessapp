@@ -52,12 +52,19 @@ export async function getDashboardData() {
   const clientIds = roster.map((c) => c.id);
   const userIds = roster.map((c) => c.user_id);
 
-  const [usersRes, assignmentsRes, workoutLogsRes, rosterCheckinsRes] = await Promise.all([
+  const [usersRes, assignmentsRes, workoutLogsRes, rosterCheckinsRes, contractsRes] = await Promise.all([
     userIds.length ? supabase.from("app_users").select("id,email,full_name,role").in("id", userIds) : Promise.resolve({ data: [], error: null }),
     clientIds.length ? supabase.from("program_assignments").select("client_id,active").in("client_id", clientIds).eq("active", true) : Promise.resolve({ data: [], error: null }),
     clientIds.length ? supabase.from("workout_logs").select("client_id,completed_at").in("client_id", clientIds).order("completed_at", { ascending: false }) : Promise.resolve({ data: [], error: null }),
     clientIds.length
       ? supabase.from("checkins").select("client_id,created_at,adherence,nutrition_adherence_percent").in("client_id", clientIds).order("created_at", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
+    clientIds.length
+      ? supabase
+          .from("client_contracts")
+          .select("client_id,status,created_at")
+          .in("client_id", clientIds)
+          .order("created_at", { ascending: false })
       : Promise.resolve({ data: [], error: null })
   ]);
 
@@ -65,6 +72,7 @@ export async function getDashboardData() {
   if (assignmentsRes.error) throw assignmentsRes.error;
   if (workoutLogsRes.error) throw workoutLogsRes.error;
   if (rosterCheckinsRes.error) throw rosterCheckinsRes.error;
+  if (contractsRes.error) throw contractsRes.error;
 
   const userById = new Map((usersRes.data || []).map((u) => [u.id, u]));
   const activeAssignmentByClientId = new Set((assignmentsRes.data || []).map((a) => a.client_id));
@@ -80,6 +88,12 @@ export async function getDashboardData() {
     const current = checkinsByClientId.get(entry.client_id) || [];
     current.push(entry);
     checkinsByClientId.set(entry.client_id, current);
+  }
+  const latestContractStatusByClientId = new Map<string, string>();
+  for (const entry of contractsRes.data || []) {
+    if (!latestContractStatusByClientId.has(entry.client_id)) {
+      latestContractStatusByClientId.set(entry.client_id, entry.status || "not_sent");
+    }
   }
 
   const now = Date.now();
@@ -178,10 +192,27 @@ export async function getDashboardData() {
     .sort((a, b) => (b?.score || 0) - (a?.score || 0))
     .slice(0, 12);
 
+  const totalRostersClients = roster.filter((c) => {
+    const identity = userById.get(c.user_id);
+    return identity?.role === "client";
+  }).length;
+  const contractsSent = Array.from(latestContractStatusByClientId.values()).filter((status) => status !== "not_sent").length;
+  const contractsOpened = Array.from(latestContractStatusByClientId.values()).filter((status) => status === "opened" || status === "viewed" || status === "completed").length;
+  const contractsCompleted = Array.from(latestContractStatusByClientId.values()).filter((status) => status === "completed").length;
+  const percent = (value: number, total: number) => (total > 0 ? Math.round((value / total) * 100) : 0);
+
   return {
     counts: {
-      clients: clientsRes.count ?? 0,
+      clients: appUser.role === "admin" ? clientsRes.count ?? 0 : totalRostersClients,
       templates: templatesRes.count ?? 0
+    },
+    contractFunnel: {
+      sent: contractsSent,
+      opened: contractsOpened,
+      completed: contractsCompleted,
+      sentRate: percent(contractsSent, totalRostersClients),
+      openRate: percent(contractsOpened, contractsSent),
+      completionRate: percent(contractsCompleted, contractsSent)
     },
     checkins: checkinsRes.data,
     priorityQueue,

@@ -9,12 +9,21 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip,
 export function CoachDashboard({
   clients,
   templates,
+  contractFunnel,
   checkins,
   priorityQueue,
   overdueCheckins
 }: {
   clients: number;
   templates: number;
+  contractFunnel: {
+    sent: number;
+    opened: number;
+    completed: number;
+    sentRate: number;
+    openRate: number;
+    completionRate: number;
+  };
   checkins: { created_at: string; adherence: number | null; nutrition_adherence_percent?: number | null }[];
   priorityQueue: {
     clientId: string;
@@ -60,6 +69,30 @@ export function CoachDashboard({
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Program Templates</p>
           <p className="mt-1 text-4xl font-bold text-slate-900">{templates}</p>
           <p className="mt-2 text-sm text-slate-600">Reusable structures available for client assignment.</p>
+        </div>
+        <div className="card">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Contracts Sent</p>
+            <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-700">{contractFunnel.sentRate}% of roster</span>
+          </div>
+          <p className="mt-1 text-4xl font-bold text-slate-900">{contractFunnel.sent}</p>
+          <p className="mt-2 text-sm text-slate-600">Latest contract created for each client.</p>
+        </div>
+        <div className="card">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Contracts Opened</p>
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">{contractFunnel.openRate}% open rate</span>
+          </div>
+          <p className="mt-1 text-4xl font-bold text-slate-900">{contractFunnel.opened}</p>
+          <p className="mt-2 text-sm text-slate-600">Opened or completed from sent contracts.</p>
+        </div>
+        <div className="card">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Contracts Completed</p>
+            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">{contractFunnel.completionRate}% completion rate</span>
+          </div>
+          <p className="mt-1 text-4xl font-bold text-slate-900">{contractFunnel.completed}</p>
+          <p className="mt-2 text-sm text-slate-600">Signed and complete in BreezeDoc.</p>
         </div>
         <div className="card md:col-span-2">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Overdue Check-ins (7+ days)</p>

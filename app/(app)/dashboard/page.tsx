@@ -27,6 +27,16 @@ export default async function DashboardPage() {
         <CoachDashboard
           clients={data.counts?.clients || 0}
           templates={data.counts?.templates || 0}
+          contractFunnel={
+            data.contractFunnel || {
+              sent: 0,
+              opened: 0,
+              completed: 0,
+              sentRate: 0,
+              openRate: 0,
+              completionRate: 0
+            }
+          }
           checkins={data.checkins || []}
           priorityQueue={data.priorityQueue || []}
           overdueCheckins={data.overdueCheckins || []}
