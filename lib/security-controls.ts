@@ -48,7 +48,8 @@ const defaultRateLimitPolicies: Record<string, RateLimitPolicy> = {
   "messages.upload": { limit: 20, windowSeconds: 10 * 60 },
   "admin.set_password": { limit: 12, windowSeconds: 10 * 60 },
   "exercises.import_csv": { limit: 8, windowSeconds: 60 * 60 },
-  "programs.generate": { limit: 60, windowSeconds: 60 * 60 }
+  "programs.generate": { limit: 60, windowSeconds: 60 * 60 },
+  "contracts.send": { limit: 10, windowSeconds: 60 * 60 }
 };
 
 const defaultLockoutPolicy: LockoutPolicy = {

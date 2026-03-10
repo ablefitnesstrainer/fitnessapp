@@ -34,7 +34,8 @@ const labels: Record<string, string> = {
   "messages.upload": "Message attachment uploads",
   "admin.set_password": "Admin password resets",
   "exercises.import_csv": "Exercise CSV imports",
-  "programs.generate": "Program generations"
+  "programs.generate": "Program generations",
+  "contracts.send": "Contract sends"
 };
 
 export function SecuritySettingsForm() {

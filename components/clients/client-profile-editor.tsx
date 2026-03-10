@@ -8,6 +8,16 @@ import { HabitManager } from "@/components/habits/habit-manager";
 type Props = {
   clientId: string;
   clientName: string;
+  clientEmail: string;
+  initialContract: {
+    id: string;
+    documentId: number;
+    documentSlug: string | null;
+    status: string;
+    sentAt: string | null;
+    openedAt: string | null;
+    completedAt: string | null;
+  } | null;
   initial: {
     age: number | null;
     height: number | null;
@@ -34,11 +44,20 @@ type Props = {
   };
 };
 
-export function ClientProfileEditor({ clientId, clientName, initial }: Props) {
+export function ClientProfileEditor({ clientId, clientName, clientEmail, initialContract, initial }: Props) {
   const router = useRouter();
   const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [contract, setContract] = useState(initialContract);
+  const [contractStatus, setContractStatus] = useState<string | null>(null);
+  const [contractBusy, setContractBusy] = useState(false);
   const [form, setForm] = useState(initial);
+
+  const contractUrl = contract?.documentSlug
+    ? `https://breezedoc.com/documents/${contract.documentSlug}/view`
+    : contract?.documentId
+      ? `https://breezedoc.com/documents/${contract.documentId}/view`
+      : null;
 
   const save = async () => {
     setSaving(true);
@@ -118,6 +137,40 @@ export function ClientProfileEditor({ clientId, clientName, initial }: Props) {
     router.refresh();
   };
 
+  const sendContract = async () => {
+    setContractBusy(true);
+    setContractStatus(null);
+    const res = await fetch("/api/contracts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_id: clientId })
+    });
+    const payload = await res.json();
+    if (!res.ok) {
+      setContractStatus(payload.error || "Failed to send contract");
+      setContractBusy(false);
+      return;
+    }
+    setContract(payload.contract || null);
+    setContractStatus("Contract sent.");
+    setContractBusy(false);
+  };
+
+  const refreshContract = async () => {
+    setContractBusy(true);
+    setContractStatus(null);
+    const res = await fetch(`/api/contracts?client_id=${encodeURIComponent(clientId)}&refresh=1`, { cache: "no-store" });
+    const payload = await res.json();
+    if (!res.ok) {
+      setContractStatus(payload.error || "Failed to refresh contract");
+      setContractBusy(false);
+      return;
+    }
+    setContract(payload.contract || null);
+    setContractStatus("Contract status refreshed.");
+    setContractBusy(false);
+  };
+
   return (
     <section className="space-y-4">
       <div className="card bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-700 text-white">
@@ -160,6 +213,38 @@ export function ClientProfileEditor({ clientId, clientName, initial }: Props) {
             />
           </div>
         </div>
+      </div>
+
+      <div className="card space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">Coaching Contract (BreezeDoc)</h2>
+          <p className="text-sm text-slate-600">Send and track e-signatures for this client contract.</p>
+        </div>
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm">
+          <p className="text-slate-700">
+            Recipient: <span className="font-semibold text-slate-900">{clientName}</span> ({clientEmail})
+          </p>
+          <p className="text-slate-700">
+            Status: <span className="font-semibold text-slate-900">{contract?.status || "Not sent"}</span>
+          </p>
+          {contract?.sentAt && <p className="text-slate-600">Sent: {new Date(contract.sentAt).toLocaleString()}</p>}
+          {contract?.openedAt && <p className="text-slate-600">Opened: {new Date(contract.openedAt).toLocaleString()}</p>}
+          {contract?.completedAt && <p className="text-slate-600">Completed: {new Date(contract.completedAt).toLocaleString()}</p>}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-secondary" onClick={sendContract} disabled={contractBusy}>
+            {contractBusy ? "Sending..." : contract ? "Resend Contract" : "Send Contract"}
+          </button>
+          <button className="btn-secondary" onClick={refreshContract} disabled={contractBusy}>
+            Refresh Status
+          </button>
+          {contractUrl && (
+            <a href={contractUrl} target="_blank" rel="noreferrer" className="btn-secondary">
+              Open in BreezeDoc
+            </a>
+          )}
+        </div>
+        {contractStatus && <p className="text-sm text-slate-700">{contractStatus}</p>}
       </div>
 
       <div className="card space-y-4">

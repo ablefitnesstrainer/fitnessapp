@@ -25,11 +25,12 @@ export default async function ClientEditPage({ params }: { params: { clientId: s
   if (clientError) throw clientError;
   if (!client) notFound();
 
-  const [{ data: userRow }, { data: weightRow }, intakeResponse, { data: targetRow }] = await Promise.all([
+  const [{ data: userRow }, { data: weightRow }, intakeResponse, { data: targetRow }, { data: contractRow }] = await Promise.all([
     supabase.from("app_users").select("id,email,full_name").eq("id", client.user_id).maybeSingle(),
     supabase.from("bodyweight_logs").select("weight").eq("client_id", client.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("client_intakes").select("*").eq("client_id", client.id).maybeSingle(),
-    supabase.from("nutrition_targets").select("calories,protein,carbs,fat").eq("client_id", client.id).maybeSingle()
+    supabase.from("nutrition_targets").select("calories,protein,carbs,fat").eq("client_id", client.id).maybeSingle(),
+    supabase.from("client_contracts").select("id,document_id,document_slug,status,sent_at,opened_at,completed_at,client_email").eq("client_id", client.id).order("created_at", { ascending: false }).limit(1).maybeSingle()
   ]);
 
   if (intakeResponse.error && !isMissingRelation(intakeResponse.error.code)) throw intakeResponse.error;
@@ -47,6 +48,20 @@ export default async function ClientEditPage({ params }: { params: { clientId: s
       <ClientProfileEditor
         clientId={client.id}
         clientName={clientName}
+        clientEmail={userRow?.email || ""}
+        initialContract={
+          contractRow
+            ? {
+                id: contractRow.id,
+                documentId: contractRow.document_id,
+                documentSlug: contractRow.document_slug,
+                status: contractRow.status,
+                sentAt: contractRow.sent_at,
+                openedAt: contractRow.opened_at,
+                completedAt: contractRow.completed_at
+              }
+            : null
+        }
         initial={{
           age: client.age ?? null,
           height: client.height ?? null,
