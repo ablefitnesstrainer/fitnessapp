@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { writeAuditLog } from "@/lib/audit-log";
+import { enforceRateLimit } from "@/lib/security-controls";
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -16,6 +18,14 @@ export async function POST(request: Request) {
   if (!appUser || appUser.role !== "admin") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  const limited = await enforceRateLimit({
+    scope: "admin.set_password",
+    identifier: user.id,
+    limit: 12,
+    windowSeconds: 10 * 60
+  });
+  if (limited) return limited;
 
   const body = (await request.json()) as { email: string; new_password: string };
   if (!body.email || !body.new_password || body.new_password.length < 8) {
@@ -41,6 +51,16 @@ export async function POST(request: Request) {
   if (updateError) {
     return NextResponse.json({ error: updateError.message }, { status: 400 });
   }
+
+  await writeAuditLog({
+    supabase,
+    request,
+    actorId: user.id,
+    action: "admin.reset_password",
+    entityType: "user",
+    entityId: targetUser.id,
+    metadata: { email: body.email.toLowerCase() }
+  });
 
   return NextResponse.json({ ok: true });
 }

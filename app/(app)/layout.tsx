@@ -37,6 +37,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             <SignOutButton />
           </header>
           {children}
+          <footer className="mt-6 rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-xs text-amber-900">
+            Exercise and nutrition guidance in this app is educational and not medical advice.
+            Consult a licensed physician before starting or changing any exercise or diet program.
+            Participation is voluntary and users are responsible for their own decisions and outcomes.
+          </footer>
         </div>
       </main>
     </div>

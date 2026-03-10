@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { writeAuditLog } from "@/lib/audit-log";
 
 type Payload = {
   name: string;
@@ -87,6 +88,21 @@ export async function POST(request: Request) {
       if (exercisesError) return NextResponse.json({ error: exercisesError.message }, { status: 400 });
     }
   }
+
+  await writeAuditLog({
+    supabase,
+    request,
+    actorId: user.id,
+    action: "program.template.create",
+    entityType: "program_template",
+    entityId: template.id,
+    metadata: {
+      name: payload.name,
+      days_per_week: payload.days_per_week,
+      experience_level: payload.experience_level,
+      equipment_type: payload.equipment_type
+    }
+  });
 
   return NextResponse.json({ template });
 }

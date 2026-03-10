@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { calculateMifflinStJeorTargets, type SexAtBirth } from "@/lib/macro-calculator";
+import { writeAuditLog } from "@/lib/audit-log";
 
 const isMissingRelation = (code?: string) => code === "42P01" || code === "PGRST205";
 const isMissingSchemaField = (code?: string) => code === "42703" || code === "PGRST204";
@@ -142,6 +143,15 @@ export async function PATCH(request: Request) {
       { onConflict: "client_id" }
     );
     if (manualTargetError) return NextResponse.json({ error: manualTargetError.message }, { status: 400 });
+    await writeAuditLog({
+      supabase,
+      request,
+      actorId: user.id,
+      action: "nutrition.targets.manual_update",
+      entityType: "client",
+      entityId: body.client_id,
+      metadata: { calories: body.calories, protein: body.protein, carbs: body.carbs, fat: body.fat }
+    });
   } else if (body.auto_calculate_targets) {
     if (
       typeof body.age === "number" &&
@@ -169,8 +179,44 @@ export async function PATCH(request: Request) {
         { onConflict: "client_id" }
       );
       if (autoTargetError) return NextResponse.json({ error: autoTargetError.message }, { status: 400 });
+      await writeAuditLog({
+        supabase,
+        request,
+        actorId: user.id,
+        action: "nutrition.targets.auto_recalculate",
+        entityType: "client",
+        entityId: body.client_id,
+        metadata: targets
+      });
     }
   }
+
+  await writeAuditLog({
+    supabase,
+    request,
+    actorId: user.id,
+    action: "client.profile.update",
+    entityType: "client",
+    entityId: body.client_id,
+    metadata: {
+      updated_fields: Object.keys({
+        ...clientUpdate,
+        current_weight: typeof body.current_weight === "number" ? true : undefined,
+        primary_goal: body.primary_goal ? true : undefined,
+        training_experience: body.training_experience ? true : undefined,
+        injuries_or_limitations: body.injuries_or_limitations ? true : undefined,
+        equipment_access: body.equipment_access ? true : undefined,
+        days_per_week: typeof body.days_per_week === "number" ? true : undefined,
+        session_length_minutes: typeof body.session_length_minutes === "number" ? true : undefined,
+        nutrition_preferences: body.nutrition_preferences ? true : undefined,
+        dietary_restrictions: body.dietary_restrictions ? true : undefined,
+        stress_level: typeof body.stress_level === "number" ? true : undefined,
+        sleep_hours: typeof body.sleep_hours === "number" ? true : undefined,
+        readiness_to_change: typeof body.readiness_to_change === "number" ? true : undefined,
+        support_notes: body.support_notes ? true : undefined
+      })
+    }
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -20,6 +20,7 @@ type IntakePayload = {
   sleep_hours: number;
   readiness_to_change: number;
   support_notes: string;
+  liability_acknowledged: boolean;
 };
 
 export function IntakeForm({ clientId }: { clientId: string }) {
@@ -40,7 +41,8 @@ export function IntakeForm({ clientId }: { clientId: string }) {
     stress_level: 5,
     sleep_hours: 7,
     readiness_to_change: 7,
-    support_notes: ""
+    support_notes: "",
+    liability_acknowledged: false
   });
   const [status, setStatus] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -48,6 +50,10 @@ export function IntakeForm({ clientId }: { clientId: string }) {
   const onSubmit = async () => {
     if (!form.primary_goal.trim()) {
       setStatus("Primary goal is required.");
+      return;
+    }
+    if (!form.liability_acknowledged) {
+      setStatus("You must acknowledge the safety and liability disclaimer to continue.");
       return;
     }
 
@@ -187,6 +193,22 @@ export function IntakeForm({ clientId }: { clientId: string }) {
       <button className="btn-primary" onClick={onSubmit} disabled={submitting}>
         {submitting ? "Submitting..." : "Submit Intake"}
       </button>
+      <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        <p className="font-semibold">Exercise & Nutrition Safety Acknowledgment</p>
+        <p className="mt-1">
+          I understand that physical exercise and dietary changes involve inherent risks, including risk of injury, illness, or other adverse outcomes.
+          I confirm I should consult a qualified physician before beginning or changing any exercise or nutrition program.
+          I voluntarily participate and assume personal responsibility for my choices and outcomes.
+        </p>
+        <label className="mt-2 flex items-start gap-2">
+          <input
+            type="checkbox"
+            checked={form.liability_acknowledged}
+            onChange={(e) => setForm({ ...form, liability_acknowledged: e.target.checked })}
+          />
+          <span>I have read and agree to the safety disclaimer above.</span>
+        </label>
+      </div>
       {status && <p className="text-sm text-slate-700">{status}</p>}
     </div>
   );

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { writeAuditLog } from "@/lib/audit-log";
+import { enforceRateLimit } from "@/lib/security-controls";
+import { ensureSelfClientProfile } from "@/lib/self-client";
 
 type GeneratePayload = {
   template_id: string;
@@ -37,7 +40,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const limited = await enforceRateLimit({
+    scope: "programs.generate",
+    identifier: user.id,
+    limit: 60,
+    windowSeconds: 60 * 60
+  });
+  if (limited) return limited;
+
   const payload = (await request.json()) as GeneratePayload;
+  let assignmentClientId = payload.client_id || null;
+  if (assignmentClientId === "__self__") {
+    assignmentClientId = await ensureSelfClientProfile({
+      supabase,
+      userId: user.id
+    });
+  }
 
   const { data: existingWeeks, error: weeksError } = await supabase
     .from("program_weeks")
@@ -126,10 +144,10 @@ export async function POST(request: Request) {
     createdWeeks += 1;
   }
 
-  if (payload.client_id) {
+  if (assignmentClientId) {
     const { error: assignmentError } = await supabase.from("program_assignments").upsert(
       {
-        client_id: payload.client_id,
+        client_id: assignmentClientId,
         template_id: payload.template_id,
         start_week: 1,
         active: true
@@ -143,6 +161,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: assignmentError.message }, { status: 400 });
     }
   }
+
+  await writeAuditLog({
+    supabase,
+    request,
+    actorId: user.id,
+    action: "program.generate",
+    entityType: "program_template",
+    entityId: payload.template_id,
+    metadata: {
+      created_weeks: createdWeeks,
+      total_weeks: payload.weeks,
+      rep_progression: payload.rep_progression,
+      set_progression_every: payload.set_progression_every,
+      deload_week: payload.deload_week ?? null,
+      assigned_client_id: assignmentClientId
+    }
+  });
 
   return NextResponse.json({ createdWeeks });
 }

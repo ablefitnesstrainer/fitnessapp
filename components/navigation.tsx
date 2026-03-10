@@ -112,6 +112,22 @@ const links: NavLink[] = [
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className={iconClass}><path d="M12 12a4 4 0 100-8 4 4 0 000 8zm-7 9a7 7 0 0114 0" stroke="currentColor" strokeWidth="1.7"/></svg>
     )
+  },
+  {
+    href: "/admin/security",
+    label: "Security Log",
+    roles: ["admin"],
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3zm-3 8h6m-6 3h4" stroke="currentColor" strokeWidth="1.7"/></svg>
+    )
+  },
+  {
+    href: "/admin/security/settings",
+    label: "Security Settings",
+    roles: ["admin"],
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}><path d="M12 8a4 4 0 100 8 4 4 0 000-8zm9 4l-2.1.8a7.8 7.8 0 01-.5 1.2l1 2-2 2-2-1c-.4.2-.8.3-1.2.5L12 21l-2.2-2.1c-.4-.1-.8-.3-1.2-.5l-2 1-2-2 1-2c-.2-.4-.3-.8-.5-1.2L3 12l2.1-2.2c.1-.4.3-.8.5-1.2l-1-2 2-2 2 1c.4-.2.8-.3 1.2-.5L12 3l2.2 2.1c.4.1.8.3 1.2.5l2-1 2 2-1 2c.2.4.3.8.5 1.2L21 12z" stroke="currentColor" strokeWidth="1.4"/></svg>
+    )
   }
 ];
 

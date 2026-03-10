@@ -24,9 +24,18 @@ export function AuthForm({ mode }: Props) {
     const supabase = createClient();
 
     if (mode === "login") {
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) {
-        setError(signInError.message);
+      const loginRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password })
+      });
+      const loginPayload = (await loginRes.json().catch(() => null)) as { error?: string; retry_after_seconds?: number } | null;
+      if (!loginRes.ok) {
+        if (loginRes.status === 429 && loginPayload?.retry_after_seconds) {
+          setError(`${loginPayload.error || "Too many attempts"}. Try again in ${loginPayload.retry_after_seconds}s.`);
+        } else {
+          setError(loginPayload?.error || "Login failed");
+        }
         setLoading(false);
         return;
       }

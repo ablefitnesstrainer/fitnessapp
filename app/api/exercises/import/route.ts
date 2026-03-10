@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { enforceRateLimit } from "@/lib/security-controls";
 
 function parseCsv(csvText: string) {
   const lines = csvText
@@ -38,6 +39,14 @@ export async function POST(request: Request) {
   if (!appUser || (appUser.role !== "coach" && appUser.role !== "admin")) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
+
+  const limited = await enforceRateLimit({
+    scope: "exercises.import_csv",
+    identifier: user.id,
+    limit: 8,
+    windowSeconds: 60 * 60
+  });
+  if (limited) return limited;
 
   const formData = await request.formData();
   const file = formData.get("file");

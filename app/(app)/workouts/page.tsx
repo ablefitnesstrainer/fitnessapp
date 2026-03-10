@@ -1,21 +1,23 @@
 import { WorkoutLogger } from "@/components/workouts/workout-logger";
 import { createClient } from "@/lib/supabase-server";
 import { getCurrentAppUser, getCurrentClientProfile } from "@/services/auth-service";
+import { ensureSelfClientProfile } from "@/lib/self-client";
 
 export default async function WorkoutsPage() {
   const supabase = createClient();
   const appUser = await getCurrentAppUser();
 
-  if (appUser.role !== "client") {
-    return (
-      <section className="space-y-4">
-        <h1 className="text-2xl font-bold">Workouts</h1>
-        <p className="text-slate-700">Workout logging UI is available in client accounts.</p>
-      </section>
-    );
-  }
-
-  const client = await getCurrentClientProfile();
+  const client =
+    appUser.role === "client"
+      ? await getCurrentClientProfile()
+      : await (async () => {
+          const selfClientId = await ensureSelfClientProfile({
+            supabase,
+            userId: appUser.id
+          });
+          const { data } = await supabase.from("clients").select("*").eq("id", selfClientId).maybeSingle();
+          return data;
+        })();
   if (!client) {
     return <p className="text-sm text-red-600">Client profile not found.</p>;
   }
@@ -80,7 +82,7 @@ export default async function WorkoutsPage() {
 
   return (
     <section className="space-y-4">
-      <h1 className="text-2xl font-bold">Workout Logging</h1>
+      <h1 className="text-2xl font-bold">{appUser.role === "client" ? "Workout Logging" : "My Workout Logging"}</h1>
       <WorkoutLogger clientId={client.id} dayId={day.id} exercises={normalizedExercises} exerciseOptions={options || []} />
     </section>
   );

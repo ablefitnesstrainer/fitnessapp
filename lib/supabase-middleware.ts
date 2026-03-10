@@ -4,12 +4,74 @@ import { env } from "@/lib/env";
 
 const allowPublicSignup = process.env.NEXT_PUBLIC_ALLOW_PUBLIC_SIGNUP === "true";
 const isMissingRelation = (code?: string) => code === "42P01" || code === "PGRST205";
+const mutatingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function withSecurityHeaders(request: NextRequest, response: NextResponse) {
+  response.headers.set("X-Frame-Options", "DENY");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  response.headers.set("Permissions-Policy", "camera=(self), microphone=(), geolocation=()");
+  response.headers.set("Cross-Origin-Resource-Policy", "same-origin");
+  response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+
+  const csp = [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "connect-src 'self' https: wss:"
+  ].join("; ");
+  response.headers.set("Content-Security-Policy", csp);
+
+  const isHttps = request.nextUrl.protocol === "https:";
+  const isLocalHost = request.nextUrl.hostname === "localhost" || request.nextUrl.hostname === "127.0.0.1";
+  if (isHttps && !isLocalHost) {
+    response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+  }
+
+  return response;
+}
+
+function sameOrigin(request: NextRequest) {
+  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
+  if (!host) return false;
+
+  const proto = request.headers.get("x-forwarded-proto") ?? request.nextUrl.protocol.replace(":", "");
+  const expectedOrigin = `${proto}://${host}`;
+  const origin = request.headers.get("origin");
+  const referer = request.headers.get("referer");
+
+  if (origin) {
+    return origin === expectedOrigin;
+  }
+
+  if (referer) {
+    return referer === expectedOrigin || referer.startsWith(`${expectedOrigin}/`);
+  }
+
+  return false;
+}
+
+function hasSupabaseAuthCookie(request: NextRequest) {
+  return request.cookies.getAll().some((cookie) => cookie.name.startsWith("sb-") && cookie.name.includes("-auth-token"));
+}
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
+  const pathname = request.nextUrl.pathname;
+  const isApiRequest = pathname.startsWith("/api/");
+  if (isApiRequest && mutatingMethods.has(request.method) && hasSupabaseAuthCookie(request) && !sameOrigin(request)) {
+    return withSecurityHeaders(request, NextResponse.json({ error: "Invalid request origin" }, { status: 403 }));
+  }
+
   if (!env.supabaseUrl || !env.supabaseAnonKey) {
-    return supabaseResponse;
+    return withSecurityHeaders(request, supabaseResponse);
   }
 
   const supabase = createServerClient(env.supabaseUrl, env.supabaseAnonKey, {
@@ -30,10 +92,9 @@ export async function updateSession(request: NextRequest) {
     data: { user }
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
   const isStaticAsset = pathname.startsWith("/_next") || pathname === "/favicon.ico" || /\.[a-zA-Z0-9]+$/.test(pathname);
   if (isStaticAsset) {
-    return supabaseResponse;
+    return withSecurityHeaders(request, supabaseResponse);
   }
   const isPublicAuthPath =
     pathname.startsWith("/login") ||
@@ -45,20 +106,23 @@ export async function updateSession(request: NextRequest) {
   if (!allowPublicSignup && pathname.startsWith("/register")) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
-    return NextResponse.redirect(redirectUrl);
+    return withSecurityHeaders(request, NextResponse.redirect(redirectUrl));
   }
 
   if (!user && !isPublicAuthPath) {
+    if (pathname.startsWith("/api/")) {
+      return withSecurityHeaders(request, supabaseResponse);
+    }
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
-    return NextResponse.redirect(redirectUrl);
+    return withSecurityHeaders(request, NextResponse.redirect(redirectUrl));
   }
 
   const isLoginOrRegister = pathname.startsWith("/login") || pathname.startsWith("/register");
   if (user && isLoginOrRegister) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/dashboard";
-    return NextResponse.redirect(redirectUrl);
+    return withSecurityHeaders(request, NextResponse.redirect(redirectUrl));
   }
 
   const isPageRequest = !pathname.startsWith("/api") && !isPublicAuthPath;
@@ -75,11 +139,11 @@ export async function updateSession(request: NextRequest) {
           const redirectUrl = request.nextUrl.clone();
           redirectUrl.pathname = "/checkins";
           redirectUrl.searchParams.set("required", "intake");
-          return NextResponse.redirect(redirectUrl);
+          return withSecurityHeaders(request, NextResponse.redirect(redirectUrl));
         }
       }
     }
   }
 
-  return supabaseResponse;
+  return withSecurityHeaders(request, supabaseResponse);
 }

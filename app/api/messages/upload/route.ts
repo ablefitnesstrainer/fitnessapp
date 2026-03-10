@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { enforceRateLimit } from "@/lib/security-controls";
 
 function allowedMime(mime: string) {
   return ["image/jpeg", "image/png", "image/webp", "application/pdf", "text/plain"].includes(mime);
@@ -21,6 +22,14 @@ export async function POST(request: Request) {
     data: { user }
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const limited = await enforceRateLimit({
+    scope: "messages.upload",
+    identifier: user.id,
+    limit: 20,
+    windowSeconds: 10 * 60
+  });
+  if (limited) return limited;
 
   const formData = await request.formData();
   const file = formData.get("file");

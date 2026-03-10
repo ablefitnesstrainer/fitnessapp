@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { enforceRateLimit } from "@/lib/security-controls";
 
 const isMissingReadField = (code?: string) => code === "42703" || code === "PGRST204";
 
@@ -66,6 +67,14 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const limited = await enforceRateLimit({
+    scope: "messages.send",
+    identifier: user.id,
+    limit: 120,
+    windowSeconds: 60
+  });
+  if (limited) return limited;
 
   const body = (await request.json()) as {
     receiver_id: string;

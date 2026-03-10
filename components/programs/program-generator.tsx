@@ -75,6 +75,7 @@ export function ProgramGenerator({ templates, clients }: { templates: Template[]
           <label className="label">Assign to client (optional)</label>
           <select className="input" value={clientId} onChange={(e) => setClientId(e.target.value)}>
             <option value="">No assignment</option>
+            <option value="__self__">Assign to me</option>
             {clients.map((client) => (
               <option key={client.id} value={client.id}>
                 {client.user_name}

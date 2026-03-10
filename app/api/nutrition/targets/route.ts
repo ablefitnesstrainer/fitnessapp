@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { writeAuditLog } from "@/lib/audit-log";
 
 export async function PATCH(request: Request) {
   const supabase = createClient();
@@ -45,6 +46,16 @@ export async function PATCH(request: Request) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  await writeAuditLog({
+    supabase,
+    request,
+    actorId: user.id,
+    action: "nutrition.targets.update",
+    entityType: "client",
+    entityId: body.client_id,
+    metadata: { calories: body.calories, protein: body.protein, carbs: body.carbs, fat: body.fat, actor_role: appUser.role }
+  });
 
   return NextResponse.json({ target });
 }

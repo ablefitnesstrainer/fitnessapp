@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { writeAuditLog } from "@/lib/audit-log";
 
 export async function PATCH(request: Request) {
   const supabase = createClient();
@@ -33,6 +34,16 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  await writeAuditLog({
+    supabase,
+    request,
+    actorId: user.id,
+    action: "client.assign_coach",
+    entityType: "client",
+    entityId: body.client_id,
+    metadata: { coach_id: coachIdToSet, actor_role: appUser.role }
+  });
+
   return NextResponse.json({ ok: true, coach_id: coachIdToSet });
 }
 
@@ -62,6 +73,16 @@ export async function DELETE(request: Request) {
 
   const { error } = await supabase.from("clients").delete().eq("id", clientId);
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+
+  await writeAuditLog({
+    supabase,
+    request,
+    actorId: user.id,
+    action: "client.delete",
+    entityType: "client",
+    entityId: clientId,
+    metadata: { actor_role: appUser.role }
+  });
 
   return NextResponse.json({ ok: true });
 }

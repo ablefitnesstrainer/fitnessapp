@@ -30,7 +30,12 @@ export async function POST(request: Request) {
     sleep_hours: number;
     readiness_to_change: number;
     support_notes: string;
+    liability_acknowledged: boolean;
   };
+
+  if (!body.liability_acknowledged) {
+    return NextResponse.json({ error: "Safety acknowledgment is required" }, { status: 400 });
+  }
 
   const intakePayload = {
     client_id: body.client_id,
@@ -46,7 +51,10 @@ export async function POST(request: Request) {
     stress_level: body.stress_level,
     sleep_hours: body.sleep_hours,
     readiness_to_change: body.readiness_to_change,
-    support_notes: body.support_notes
+    support_notes: body.support_notes,
+    liability_acknowledged: body.liability_acknowledged,
+    liability_acknowledged_at: new Date().toISOString(),
+    liability_ack_version: "v1-2026-03-10"
   };
 
   let { data: intake, error } = await supabase.from("client_intakes").upsert(intakePayload, { onConflict: "client_id" }).select("*").single();

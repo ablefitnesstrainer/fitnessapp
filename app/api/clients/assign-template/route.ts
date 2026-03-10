@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
+import { writeAuditLog } from "@/lib/audit-log";
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -43,6 +44,16 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
+
+  await writeAuditLog({
+    supabase,
+    request,
+    actorId: user.id,
+    action: "program.assign_template",
+    entityType: "client",
+    entityId: body.client_id,
+    metadata: { template_id: body.template_id, actor_role: appUser.role }
+  });
 
   return NextResponse.json({ ok: true });
 }
