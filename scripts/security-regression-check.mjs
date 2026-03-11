@@ -21,6 +21,7 @@ function assertIncludes(path, needle) {
 function main() {
   assert(existsSync(resolve(root, "app/(app)/admin/security/page.tsx")), "Missing admin security page");
   assert(existsSync(resolve(root, "app/(app)/admin/security/settings/page.tsx")), "Missing admin security settings page");
+  assert(existsSync(resolve(root, "app/(app)/settings/mfa/page.tsx")), "Missing MFA settings page");
   assert(existsSync(resolve(root, "app/api/auth/login/route.ts")), "Missing server-side login route");
   assert(existsSync(resolve(root, "app/api/contracts/route.ts")), "Missing contracts API route");
   assert(existsSync(resolve(root, "app/api/contracts/webhook/route.ts")), "Missing contracts webhook route");
@@ -32,6 +33,7 @@ function main() {
 
   assertIncludes("lib/supabase-middleware.ts", "Content-Security-Policy");
   assertIncludes("lib/supabase-middleware.ts", "Invalid request origin");
+  assertIncludes("lib/supabase-middleware.ts", "/settings/mfa");
 
   assertIncludes("components/auth-form.tsx", "/api/auth/login");
   assertIncludes("app/api/messages/route.ts", "enforceRateLimit");
@@ -41,6 +43,7 @@ function main() {
   assertIncludes("app/api/admin/security-settings/route.ts", "security.settings_update");
   assertIncludes("app/api/contracts/route.ts", "contracts.send");
   assertIncludes("app/api/contracts/webhook/route.ts", "Invalid webhook signature");
+  assertIncludes("components/navigation.tsx", "/settings/mfa");
 
   console.log("Security regression check passed.");
 }

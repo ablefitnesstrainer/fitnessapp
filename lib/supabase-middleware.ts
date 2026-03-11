@@ -130,6 +130,39 @@ export async function updateSession(request: NextRequest) {
   if (user && isPageRequest) {
     const { data: appUser } = await supabase.from("app_users").select("id,role").eq("id", user.id).maybeSingle();
 
+    const isMfaPage = pathname.startsWith("/settings/mfa");
+
+    if (appUser?.role === "admin" || appUser?.role === "coach") {
+      try {
+        const [{ data: factorsData }, { data: aalData }] = await Promise.all([
+          supabase.auth.mfa.listFactors(),
+          supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+        ]);
+
+        const totpFactors = factorsData?.totp || [];
+        const hasVerifiedFactor = totpFactors.some((factor) => factor.status === "verified");
+        const currentLevel = aalData?.currentLevel;
+
+        if (!hasVerifiedFactor && !isMfaPage) {
+          const redirectUrl = request.nextUrl.clone();
+          redirectUrl.pathname = "/settings/mfa";
+          redirectUrl.searchParams.set("required", "enroll");
+          redirectUrl.searchParams.set("next", pathname);
+          return withSecurityHeaders(request, NextResponse.redirect(redirectUrl));
+        }
+
+        if (hasVerifiedFactor && currentLevel !== "aal2" && !isMfaPage) {
+          const redirectUrl = request.nextUrl.clone();
+          redirectUrl.pathname = "/settings/mfa";
+          redirectUrl.searchParams.set("required", "verify");
+          redirectUrl.searchParams.set("next", pathname);
+          return withSecurityHeaders(request, NextResponse.redirect(redirectUrl));
+        }
+      } catch {
+        // If provider MFA methods are temporarily unavailable, avoid blocking all app access.
+      }
+    }
+
     if (appUser?.role === "client") {
       const { data: clientRow } = await supabase.from("clients").select("id").eq("user_id", user.id).maybeSingle();
       if (clientRow?.id) {

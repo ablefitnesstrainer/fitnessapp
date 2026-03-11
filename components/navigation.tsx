@@ -106,6 +106,16 @@ const links: NavLink[] = [
     )
   },
   {
+    href: "/settings/mfa",
+    label: "2FA",
+    roles: ["admin", "coach"],
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+        <path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3zm-2.5 9.5l2 2 3.5-4" stroke="currentColor" strokeWidth="1.7" />
+      </svg>
+    )
+  },
+  {
     href: "/admin/users",
     label: "Admin Users",
     roles: ["admin"],
