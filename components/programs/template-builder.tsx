@@ -124,36 +124,52 @@ export function TemplateBuilder({ exercises }: { exercises: Exercise[] }) {
           <h3 className="text-lg font-semibold">Day {day.day_number}</h3>
           {day.exercises.map((exercise, exIndex) => (
             <div key={`${day.day_number}-${exIndex}`} className="grid gap-2 md:grid-cols-4">
-              <select
-                className="input"
-                value={exercise.exercise_id}
-                onChange={(e) => updateExercise(dayIndex, exIndex, "exercise_id", e.target.value)}
-              >
-                <option value="">Select exercise</option>
-                {exercises.map((option) => (
-                  <option key={option.id} value={option.id}>
-                    {option.name}
-                  </option>
-                ))}
-              </select>
-              <input
-                className="input"
-                type="number"
-                value={exercise.sets}
-                onChange={(e) => updateExercise(dayIndex, exIndex, "sets", e.target.value)}
-              />
-              <input
-                className="input"
-                type="number"
-                value={exercise.reps}
-                onChange={(e) => updateExercise(dayIndex, exIndex, "reps", e.target.value)}
-              />
-              <input
-                className="input"
-                placeholder="Warmup reps (10|8)"
-                value={exercise.warmup_sets.join("|")}
-                onChange={(e) => updateExercise(dayIndex, exIndex, "warmup_sets", e.target.value)}
-              />
+              <div>
+                <label className="label">Exercise</label>
+                <select
+                  className="input"
+                  value={exercise.exercise_id}
+                  onChange={(e) => updateExercise(dayIndex, exIndex, "exercise_id", e.target.value)}
+                >
+                  <option value="">Select exercise</option>
+                  {exercises.map((option) => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="label">Sets</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  placeholder="e.g. 3"
+                  value={exercise.sets}
+                  onChange={(e) => updateExercise(dayIndex, exIndex, "sets", e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Reps</label>
+                <input
+                  className="input"
+                  type="number"
+                  min={1}
+                  placeholder="e.g. 10"
+                  value={exercise.reps}
+                  onChange={(e) => updateExercise(dayIndex, exIndex, "reps", e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="label">Warm-up reps</label>
+                <input
+                  className="input"
+                  placeholder="10|8"
+                  value={exercise.warmup_sets.join("|")}
+                  onChange={(e) => updateExercise(dayIndex, exIndex, "warmup_sets", e.target.value)}
+                />
+              </div>
             </div>
           ))}
 
