@@ -11,6 +11,7 @@ export function CoachDashboard({
   clients,
   templates,
   contractFunnel,
+  coachDigest,
   checkins,
   contractQueue,
   priorityQueue,
@@ -25,6 +26,13 @@ export function CoachDashboard({
     sentRate: number;
     openRate: number;
     completionRate: number;
+  };
+  coachDigest: {
+    contractsPending: number;
+    overdueCheckins: number;
+    unreadMessages: number;
+    lowAdherenceClients: number;
+    checkinsThisWeek: number;
   };
   checkins: { created_at: string; adherence: number | null; nutrition_adherence_percent?: number | null }[];
   contractQueue: {
@@ -152,6 +160,36 @@ export function CoachDashboard({
 
   return (
     <div className="space-y-6">
+      <div className="card bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-700 text-white">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <h2 className="text-lg font-bold">Weekly Coach Digest</h2>
+          <span className="rounded-full bg-white/15 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">
+            Last 7 days
+          </span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <Link href="/dashboard" className="rounded-xl border border-white/20 bg-white/10 p-3 transition hover:bg-white/15">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">Check-ins</p>
+            <p className="mt-1 text-2xl font-bold">{coachDigest.checkinsThisWeek}</p>
+          </Link>
+          <Link href="/clients" className="rounded-xl border border-white/20 bg-white/10 p-3 transition hover:bg-white/15">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">Contracts Pending</p>
+            <p className="mt-1 text-2xl font-bold">{coachDigest.contractsPending}</p>
+          </Link>
+          <Link href="/checkins" className="rounded-xl border border-white/20 bg-white/10 p-3 transition hover:bg-white/15">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">Overdue Check-ins</p>
+            <p className="mt-1 text-2xl font-bold">{coachDigest.overdueCheckins}</p>
+          </Link>
+          <Link href="/messages" className="rounded-xl border border-white/20 bg-white/10 p-3 transition hover:bg-white/15">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">Unread Messages</p>
+            <p className="mt-1 text-2xl font-bold">{coachDigest.unreadMessages}</p>
+          </Link>
+          <Link href="/clients" className="rounded-xl border border-white/20 bg-white/10 p-3 transition hover:bg-white/15">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-100">Low Adherence</p>
+            <p className="mt-1 text-2xl font-bold">{coachDigest.lowAdherenceClients}</p>
+          </Link>
+        </div>
+      </div>
       <div className="grid gap-4 md:grid-cols-2">
         <div className="card">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Active Clients</p>

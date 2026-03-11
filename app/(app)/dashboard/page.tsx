@@ -37,6 +37,15 @@ export default async function DashboardPage() {
               completionRate: 0
             }
           }
+          coachDigest={
+            data.coachDigest || {
+              contractsPending: 0,
+              overdueCheckins: 0,
+              unreadMessages: 0,
+              lowAdherenceClients: 0,
+              checkinsThisWeek: 0
+            }
+          }
           checkins={data.checkins || []}
           contractQueue={data.contractQueue || []}
           priorityQueue={data.priorityQueue || []}

@@ -48,6 +48,11 @@ export async function getDashboardData() {
   if (checkinsRes.error) throw checkinsRes.error;
   if (rosterRes.error) throw rosterRes.error;
 
+  const unreadRes = await supabase.from("messages").select("id", { count: "exact", head: true }).eq("receiver_id", appUser.id).is("read_at", null);
+  if (unreadRes.error && unreadRes.error.code !== "42703" && unreadRes.error.code !== "PGRST204") {
+    throw unreadRes.error;
+  }
+
   const roster = rosterRes.data || [];
   const clientIds = roster.map((c) => c.id);
   const userIds = roster.map((c) => c.user_id);
@@ -275,6 +280,13 @@ export async function getDashboardData() {
       return aTs - bTs;
     })
     .slice(0, 12);
+  const lowAdherenceClients = priorityQueue.filter(
+    (item) => typeof item.adherencePercent === "number" && item.adherencePercent < 75
+  ).length;
+  const checkinsThisWeek = (checkinsRes.data || []).filter((entry) => {
+    const sevenDaysAgo = Date.now() - 1000 * 60 * 60 * 24 * 7;
+    return new Date(entry.created_at).getTime() >= sevenDaysAgo;
+  }).length;
 
   return {
     counts: {
@@ -288,6 +300,13 @@ export async function getDashboardData() {
       sentRate: percent(contractsSent, totalRostersClients),
       openRate: percent(contractsOpened, contractsSent),
       completionRate: percent(contractsCompleted, contractsSent)
+    },
+    coachDigest: {
+      contractsPending: contractQueue.length,
+      overdueCheckins: overdueCheckins.length,
+      unreadMessages: unreadRes.error ? 0 : unreadRes.count ?? 0,
+      lowAdherenceClients,
+      checkinsThisWeek
     },
     checkins: checkinsRes.data,
     contractQueue,
