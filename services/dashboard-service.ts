@@ -283,10 +283,67 @@ export async function getDashboardData() {
   const lowAdherenceClients = priorityQueue.filter(
     (item) => typeof item.adherencePercent === "number" && item.adherencePercent < 75
   ).length;
-  const checkinsThisWeek = (checkinsRes.data || []).filter((entry) => {
-    const sevenDaysAgo = Date.now() - 1000 * 60 * 60 * 24 * 7;
-    return new Date(entry.created_at).getTime() >= sevenDaysAgo;
-  }).length;
+  const sevenDaysAgoTs = Date.now() - 1000 * 60 * 60 * 24 * 7;
+  const checkinsThisWeek = (checkinsRes.data || []).filter((entry) => new Date(entry.created_at).getTime() >= sevenDaysAgoTs).length;
+  const activityFeed = [
+    ...(rosterCheckinsRes.data || [])
+      .filter((entry) => new Date(entry.created_at).getTime() >= sevenDaysAgoTs)
+      .map((entry) => {
+        const client = roster.find((item) => item.id === entry.client_id);
+        const identity = client ? userById.get(client.user_id) : null;
+        const adherence = entry.nutrition_adherence_percent ?? entry.adherence ?? null;
+        return {
+          type: "checkin" as const,
+          clientId: entry.client_id,
+          clientUserId: client?.user_id || "",
+          clientName: displayNameFromIdentity({
+            fullName: identity?.full_name || null,
+            email: identity?.email || null,
+            fallbackId: client?.user_id || entry.client_id
+          }),
+          occurredAt: entry.created_at,
+          detail: adherence === null ? "Check-in submitted" : `Check-in submitted (adherence ${adherence}%)`
+        };
+      }),
+    ...(workoutLogsRes.data || [])
+      .filter((entry) => entry.completed_at && new Date(entry.completed_at).getTime() >= sevenDaysAgoTs)
+      .map((entry) => {
+        const client = roster.find((item) => item.id === entry.client_id);
+        const identity = client ? userById.get(client.user_id) : null;
+        return {
+          type: "workout" as const,
+          clientId: entry.client_id,
+          clientUserId: client?.user_id || "",
+          clientName: displayNameFromIdentity({
+            fullName: identity?.full_name || null,
+            email: identity?.email || null,
+            fallbackId: client?.user_id || entry.client_id
+          }),
+          occurredAt: entry.completed_at as string,
+          detail: "Workout completed"
+        };
+      }),
+    ...(contractsRes.data || [])
+      .filter((entry) => entry.completed_at && new Date(entry.completed_at).getTime() >= sevenDaysAgoTs)
+      .map((entry) => {
+        const client = roster.find((item) => item.id === entry.client_id);
+        const identity = client ? userById.get(client.user_id) : null;
+        return {
+          type: "contract" as const,
+          clientId: entry.client_id,
+          clientUserId: client?.user_id || "",
+          clientName: displayNameFromIdentity({
+            fullName: identity?.full_name || null,
+            email: identity?.email || null,
+            fallbackId: client?.user_id || entry.client_id
+          }),
+          occurredAt: entry.completed_at as string,
+          detail: "Contract signed"
+        };
+      })
+  ]
+    .sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime())
+    .slice(0, 20);
 
   return {
     counts: {
@@ -309,6 +366,7 @@ export async function getDashboardData() {
       checkinsThisWeek
     },
     checkins: checkinsRes.data,
+    activityFeed,
     contractQueue,
     priorityQueue,
     overdueCheckins

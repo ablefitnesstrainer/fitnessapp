@@ -13,6 +13,7 @@ export function CoachDashboard({
   contractFunnel,
   coachDigest,
   checkins,
+  activityFeed,
   contractQueue,
   priorityQueue,
   overdueCheckins
@@ -35,6 +36,14 @@ export function CoachDashboard({
     checkinsThisWeek: number;
   };
   checkins: { created_at: string; adherence: number | null; nutrition_adherence_percent?: number | null }[];
+  activityFeed: {
+    type: "checkin" | "workout" | "contract";
+    clientId: string;
+    clientUserId: string;
+    clientName: string;
+    occurredAt: string;
+    detail: string;
+  }[];
   contractQueue: {
     clientId: string;
     clientUserId: string;
@@ -241,6 +250,44 @@ export function CoachDashboard({
       <div className="card">
         <h2 className="mb-4 text-xl font-bold">Adherence Trend</h2>
         <Line data={chartData} options={{ plugins: { legend: { display: false } } }} />
+      </div>
+      <div className="card">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-xl font-bold">This Week Activity</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Workouts, check-ins, and signatures</p>
+        </div>
+        <div className="space-y-2">
+          {activityFeed.length === 0 && <p className="text-sm text-slate-600">No client activity in the last 7 days.</p>}
+          {activityFeed.map((item, index) => {
+            const badgeClass =
+              item.type === "workout"
+                ? "bg-emerald-100 text-emerald-700"
+                : item.type === "checkin"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-purple-100 text-purple-700";
+            const typeLabel = item.type === "workout" ? "Workout" : item.type === "checkin" ? "Check-in" : "Contract";
+            return (
+              <article key={`${item.type}-${item.clientId}-${item.occurredAt}-${index}`} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${badgeClass}`}>{typeLabel}</span>
+                    <p className="font-semibold text-slate-900">{item.clientName}</p>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-700">{item.detail}</p>
+                  <p className="text-xs text-slate-500">{new Date(item.occurredAt).toLocaleString()}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Link href={`/messages?peer_id=${item.clientUserId}`} className="btn-secondary">
+                    Message
+                  </Link>
+                  <Link href={`/clients/${item.clientId}`} className="btn-secondary">
+                    Open
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </div>
       <div className="card">
         <div className="mb-4 flex items-center justify-between gap-3">
