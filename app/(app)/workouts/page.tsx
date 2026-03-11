@@ -1,4 +1,5 @@
 import { WorkoutLogger } from "@/components/workouts/workout-logger";
+import { WorkoutHistoryCalendar } from "@/components/workouts/workout-history-calendar";
 import { createClient } from "@/lib/supabase-server";
 import { getCurrentAppUser, getCurrentClientProfile } from "@/services/auth-service";
 import { ensureSelfClientProfile } from "@/lib/self-client";
@@ -69,6 +70,61 @@ export default async function WorkoutsPage() {
 
   const { data: options } = await supabase.from("exercises").select("id,name,primary_muscle,equipment").order("name");
 
+  const weekIds = (weeks || []).map((entry) => entry.id);
+  const { data: allProgramDays } = weekIds.length
+    ? await supabase.from("program_days").select("id,week_id,day_number").in("week_id", weekIds).order("day_number", { ascending: true })
+    : { data: [] as Array<{ id: string; week_id: string; day_number: number }> };
+
+  const { data: workoutHistoryRows } = await supabase
+    .from("workout_logs")
+    .select("id,day_id,completed_at,total_volume,duration_minutes")
+    .eq("client_id", client.id)
+    .not("completed_at", "is", null)
+    .order("completed_at", { ascending: false })
+    .limit(30);
+
+  const weekNumberById = new Map((weeks || []).map((entry) => [entry.id, entry.week_number]));
+  const dayMetaById = new Map(
+    (allProgramDays || []).map((entry) => [
+      entry.id,
+      {
+        week_number: weekNumberById.get(entry.week_id) ?? null,
+        day_number: entry.day_number
+      }
+    ])
+  );
+
+  const workoutHistory = (workoutHistoryRows || []).map((entry) => {
+    const meta = dayMetaById.get(entry.day_id);
+    return {
+      id: entry.id,
+      completed_at: entry.completed_at,
+      total_volume: entry.total_volume,
+      duration_minutes: entry.duration_minutes,
+      week_number: meta?.week_number ?? null,
+      day_number: meta?.day_number ?? null
+    };
+  });
+
+  const sortedProgramDays = (allProgramDays || [])
+    .map((entry) => ({
+      week_number: weekNumberById.get(entry.week_id) ?? 0,
+      day_number: entry.day_number
+    }))
+    .filter((entry) => entry.week_number > 0)
+    .sort((a, b) => (a.week_number === b.week_number ? a.day_number - b.day_number : a.week_number - b.week_number));
+
+  const upcomingDays = sortedProgramDays
+    .filter(
+      (entry) =>
+        entry.week_number > week.week_number || (entry.week_number === week.week_number && entry.day_number >= day.day_number)
+    )
+    .slice(0, 8)
+    .map((entry) => ({
+      ...entry,
+      is_current: entry.week_number === week.week_number && entry.day_number === day.day_number
+    }));
+
   const normalizedExercises = (dayExercises || []).map((entry) => ({
     program_exercise_id: entry.id,
     exercise_id: entry.exercise_id,
@@ -90,6 +146,7 @@ export default async function WorkoutsPage() {
   return (
     <section className="space-y-4">
       <h1 className="text-2xl font-bold">{appUser.role === "client" ? "Workout Logging" : "My Workout Logging"}</h1>
+      <WorkoutHistoryCalendar history={workoutHistory} upcoming={upcomingDays} />
       <WorkoutLogger
         clientId={client.id}
         dayId={day.id}
