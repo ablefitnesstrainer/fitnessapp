@@ -43,7 +43,17 @@ export function ExerciseLibrary({ initialExercises, canImport }: { initialExerci
     }
 
     setExercises(payload.exercises);
-    setStatus(`Imported ${payload.inserted} exercises`);
+    const inserted = Number(payload.inserted || 0);
+    const skippedExisting = Number(payload.skipped_duplicates_existing || 0);
+    const skippedInFile = Number(payload.skipped_duplicates_in_file || 0);
+    const duplicateDetails: string[] = [];
+    if (skippedExisting > 0) duplicateDetails.push(`${skippedExisting} already existed`);
+    if (skippedInFile > 0) duplicateDetails.push(`${skippedInFile} duplicated in CSV`);
+    setStatus(
+      duplicateDetails.length > 0
+        ? `Imported ${inserted} exercises. Skipped duplicates: ${duplicateDetails.join(", ")}.`
+        : `Imported ${inserted} exercises.`
+    );
     setImporting(false);
   };
 

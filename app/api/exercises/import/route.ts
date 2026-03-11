@@ -75,7 +75,39 @@ export async function POST(request: Request) {
       created_by: user.id
     }));
 
-  const { error } = await supabase.from("exercises").insert(payload);
+  if (!payload.length) {
+    return NextResponse.json({ error: "CSV has no valid exercise rows with a name." }, { status: 400 });
+  }
+
+  const normalizedCsvNames = payload.map((row) => row.name.trim().toLowerCase());
+  const duplicateInFileSet = new Set<string>();
+  const seen = new Set<string>();
+  for (const name of normalizedCsvNames) {
+    if (seen.has(name)) {
+      duplicateInFileSet.add(name);
+    } else {
+      seen.add(name);
+    }
+  }
+
+  const { data: existingExercises, error: existingError } = await supabase.from("exercises").select("name");
+  if (existingError) {
+    return NextResponse.json({ error: existingError.message }, { status: 400 });
+  }
+
+  const existingNameSet = new Set((existingExercises || []).map((entry) => entry.name.trim().toLowerCase()));
+  const duplicateExistingSet = new Set<string>();
+  const uniquePayload = payload.filter((row) => {
+    const normalizedName = row.name.trim().toLowerCase();
+    if (duplicateInFileSet.has(normalizedName)) return false;
+    if (existingNameSet.has(normalizedName)) {
+      duplicateExistingSet.add(normalizedName);
+      return false;
+    }
+    return true;
+  });
+
+  const { error } = uniquePayload.length ? await supabase.from("exercises").insert(uniquePayload) : { error: null };
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
@@ -87,5 +119,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: listError.message }, { status: 400 });
   }
 
-  return NextResponse.json({ inserted: payload.length, exercises });
+  return NextResponse.json({
+    inserted: uniquePayload.length,
+    skipped_duplicates_existing: duplicateExistingSet.size,
+    skipped_duplicates_in_file: duplicateInFileSet.size,
+    duplicate_existing_names: Array.from(duplicateExistingSet).slice(0, 20),
+    duplicate_in_file_names: Array.from(duplicateInFileSet).slice(0, 20),
+    exercises
+  });
 }

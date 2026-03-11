@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
+import Link from "next/link";
 
 type Props = {
   mode: "login" | "register";
@@ -15,6 +16,7 @@ export function AuthForm({ mode }: Props) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +51,9 @@ export function AuthForm({ mode }: Props) {
       password,
       options: {
         data: {
-          full_name: fullName
+          full_name: fullName,
+          terms_accepted: legalAccepted,
+          terms_accepted_at: legalAccepted ? new Date().toISOString() : null
         }
       }
     });
@@ -87,9 +91,25 @@ export function AuthForm({ mode }: Props) {
           <label className="label">Password</label>
           <input className="input" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </div>
+        {mode === "register" && (
+          <label className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+            <input type="checkbox" checked={legalAccepted} onChange={(e) => setLegalAccepted(e.target.checked)} required />
+            <span>
+              I agree to the{" "}
+              <Link href="/terms" className="font-semibold text-blue-700 hover:text-blue-800">
+                Terms of Service
+              </Link>{" "}
+              and{" "}
+              <Link href="/privacy" className="font-semibold text-blue-700 hover:text-blue-800">
+                Privacy Policy
+              </Link>
+              .
+            </span>
+          </label>
+        )}
         {error && <p className="status-error text-sm">{error}</p>}
 
-        <button className="btn-primary w-full" type="submit" disabled={loading}>
+        <button className="btn-primary w-full" type="submit" disabled={loading || (mode === "register" && !legalAccepted)}>
           {loading ? "Please wait..." : mode === "login" ? "Login" : "Register"}
         </button>
       </form>

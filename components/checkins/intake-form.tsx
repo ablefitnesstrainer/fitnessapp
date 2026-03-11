@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type IntakePayload = {
   sex_at_birth: "male" | "female";
@@ -206,7 +207,17 @@ export function IntakeForm({ clientId }: { clientId: string }) {
             checked={form.liability_acknowledged}
             onChange={(e) => setForm({ ...form, liability_acknowledged: e.target.checked })}
           />
-          <span>I have read and agree to the safety disclaimer above.</span>
+          <span>
+            I have read and agree to the safety disclaimer above, the{" "}
+            <Link href="/terms" className="font-semibold text-blue-700 hover:text-blue-800">
+              Terms of Service
+            </Link>
+            , and the{" "}
+            <Link href="/privacy" className="font-semibold text-blue-700 hover:text-blue-800">
+              Privacy Policy
+            </Link>
+            .
+          </span>
         </label>
       </div>
       {status && <p className="text-sm text-slate-700">{status}</p>}
