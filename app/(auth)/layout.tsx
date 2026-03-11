@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -28,7 +29,20 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <p>Weekly check-ins with direct coach messaging</p>
           </div>
         </div>
-        <div className="bg-white p-6 sm:p-10">{children}</div>
+        <div className="bg-white p-6 sm:p-10">
+          {children}
+          <div className="mt-6 border-t border-slate-200 pt-4 text-xs text-slate-500">
+            <div className="flex flex-wrap items-center gap-3">
+              <Link href="/privacy" className="font-semibold text-slate-600 hover:text-slate-900">
+                Privacy Policy
+              </Link>
+              <span>•</span>
+              <Link href="/terms" className="font-semibold text-slate-600 hover:text-slate-900">
+                Terms of Service
+              </Link>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

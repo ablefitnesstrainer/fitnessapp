@@ -3,6 +3,7 @@ import { SignOutButton } from "@/components/sign-out-button";
 import { getCurrentAppUser } from "@/services/auth-service";
 import { BrandLogo } from "@/components/brand-logo";
 import { createClient } from "@/lib/supabase-server";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -38,9 +39,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </header>
           {children}
           <footer className="mt-6 rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-3 text-xs text-amber-900">
-            Exercise and nutrition guidance in this app is educational and not medical advice.
-            Consult a licensed physician before starting or changing any exercise or diet program.
-            Participation is voluntary and users are responsible for their own decisions and outcomes.
+            <p>
+              Exercise and nutrition guidance in this app is educational and not medical advice. Consult a licensed physician
+              before starting or changing any exercise or diet program. Participation is voluntary and users are responsible for
+              their own decisions and outcomes.
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <Link href="/privacy" className="font-semibold underline decoration-amber-400/70 underline-offset-2 hover:text-amber-950">
+                Privacy Policy
+              </Link>
+              <span>•</span>
+              <Link href="/terms" className="font-semibold underline decoration-amber-400/70 underline-offset-2 hover:text-amber-950">
+                Terms of Service
+              </Link>
+            </div>
           </footer>
         </div>
       </main>
