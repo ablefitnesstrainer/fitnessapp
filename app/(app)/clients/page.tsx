@@ -42,7 +42,12 @@ export default async function ClientsPage() {
   const [{ data: users, error: usersError }, { data: assignments, error: assignmentsError }, { data: coaches, error: coachesError }, { data: templates, error: templatesError }, { data: bodyweights, error: bodyweightsError }, { data: checkins, error: checkinsError }] = await Promise.all([
     idsForLookup.length ? supabase.from("app_users").select("id,email,full_name,role").in("id", idsForLookup) : Promise.resolve({ data: [], error: null }),
     (clients || []).length
-      ? supabase.from("program_assignments").select("client_id,active").in("client_id", (clients || []).map((client) => client.id)).eq("active", true)
+      ? supabase
+          .from("program_assignments")
+          .select("client_id,active,start_on,created_at")
+          .in("client_id", (clients || []).map((client) => client.id))
+          .eq("active", true)
+          .order("created_at", { ascending: false })
       : Promise.resolve({ data: [], error: null }),
     coachesQuery,
     templatesQuery,
@@ -100,6 +105,12 @@ export default async function ClientsPage() {
 
   const userMap = new Map((users || []).map((user) => [user.id, user]));
   const assignedClientIds = new Set((assignments || []).map((assignment) => assignment.client_id));
+  const assignmentStartByClientId = new Map<string, string | null>();
+  for (const assignment of assignments || []) {
+    if (!assignmentStartByClientId.has(assignment.client_id)) {
+      assignmentStartByClientId.set(assignment.client_id, assignment.start_on || null);
+    }
+  }
   const intakeByClientId = new Map((intakes || []).map((intake) => [intake.client_id, intake]));
   const latestContractByClientId = new Map<string, {
     id: string;
@@ -233,6 +244,7 @@ export default async function ClientsPage() {
       adherenceTrend,
       sevenDayHitPercent,
       hasActiveProgram: assignedClientIds.has(client.id),
+      programStartOn: assignmentStartByClientId.get(client.id) || null,
       createdAt: new Date(client.created_at).toLocaleDateString(),
       contract: latestContractByClientId.get(client.id) || null,
       intakeSubmitted: Boolean(intake),

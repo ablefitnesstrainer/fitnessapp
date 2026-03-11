@@ -19,6 +19,7 @@ type RosterRow = {
   adherenceTrend: "up" | "down" | "flat" | "na";
   sevenDayHitPercent: number | null;
   hasActiveProgram: boolean;
+  programStartOn: string | null;
   createdAt: string;
   contract: {
     id: string;
@@ -73,6 +74,9 @@ export function RosterTable({
     Object.fromEntries(rows.map((row) => [row.id, new Date().toISOString().slice(0, 10)]))
   );
   const [assignedProgramIds, setAssignedProgramIds] = useState<Set<string>>(new Set(rows.filter((r) => r.hasActiveProgram).map((r) => r.id)));
+  const [programStartDatesByClientId, setProgramStartDatesByClientId] = useState<Record<string, string | null>>(
+    Object.fromEntries(rows.map((row) => [row.id, row.programStartOn || null]))
+  );
   const [contractsByClientId, setContractsByClientId] = useState<Record<string, RosterRow["contract"]>>(() =>
     Object.fromEntries(rows.map((row) => [row.id, row.contract]))
   );
@@ -156,6 +160,10 @@ export function RosterTable({
     }
 
     setAssignedProgramIds((prev) => new Set(prev).add(clientId));
+    setProgramStartDatesByClientId((prev) => ({
+      ...prev,
+      [clientId]: startDateSelections[clientId] || new Date().toISOString().slice(0, 10)
+    }));
     setStatus("Program assigned.");
     setPending(null);
   };
@@ -243,6 +251,7 @@ export function RosterTable({
               <th className="px-2 py-3 font-semibold">Adherence Trend</th>
               <th className="px-2 py-3 font-semibold">7d Nutrition Hit</th>
               <th className="px-2 py-3 font-semibold">Program</th>
+              <th className="px-2 py-3 font-semibold">Start Date</th>
               <th className="px-2 py-3 font-semibold">Intake</th>
               <th className="px-2 py-3 font-semibold">Contract</th>
               <th className="px-2 py-3 font-semibold">Created</th>
@@ -317,6 +326,17 @@ export function RosterTable({
                     <span className={`rounded-full px-2 py-1 text-xs font-semibold ${assignedProgramIds.has(row.id) ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>
                       {assignedProgramIds.has(row.id) ? "Assigned" : "Unassigned"}
                     </span>
+                  </td>
+                  <td className="px-2 py-3">
+                    {assignedProgramIds.has(row.id) ? (
+                      <span className="text-sm font-medium text-slate-700">
+                        {programStartDatesByClientId[row.id]
+                          ? new Date(`${programStartDatesByClientId[row.id]}T00:00:00`).toLocaleDateString()
+                          : "-"}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-slate-500">-</span>
+                    )}
                   </td>
                   <td className="px-2 py-3">
                     {row.intakeSubmitted && row.intakeSummary ? (
