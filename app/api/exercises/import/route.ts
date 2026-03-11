@@ -2,20 +2,48 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { enforceRateLimit } from "@/lib/security-controls";
 
+function parseCsvLine(line: string) {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+    if (char === "," && !inQuotes) {
+      result.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  result.push(current.trim());
+  return result;
+}
+
 function parseCsv(csvText: string) {
-  const lines = csvText
+  const cleaned = csvText.replace(/^\uFEFF/, "");
+  const lines = cleaned
     .split(/\r?\n/)
-    .map((line) => line.trim())
+    .map((line) => line.trimEnd())
     .filter(Boolean);
 
   if (lines.length < 2) {
     return [];
   }
 
-  const headers = lines[0].split(",").map((h) => h.trim().toLowerCase());
+  const headers = parseCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
 
   return lines.slice(1).map((line) => {
-    const values = line.split(",").map((v) => v.trim());
+    const values = parseCsvLine(line);
     const row: Record<string, string> = {};
     headers.forEach((header, i) => {
       row[header] = values[i] ?? "";
@@ -62,10 +90,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "CSV file has no data" }, { status: 400 });
   }
 
-  const payload = rows
-    .filter((row) => row.name)
+  const resolveName = (row: Record<string, string>) =>
+    row.name || row.exercise_name || row.exercise || row.exercise_title || row.title || "";
+
+  const rowsWithResolved: Array<Record<string, string> & { __resolved_name: string }> = rows.map((row) => ({
+    ...row,
+    __resolved_name: resolveName(row)
+  }));
+
+  const payload = rowsWithResolved
+    .filter((row) => row.__resolved_name)
     .map((row) => ({
-      name: row.name,
+      name: row.__resolved_name,
       primary_muscle: row.primary_muscle || null,
       secondary_muscle: row.secondary_muscle || null,
       equipment: row.equipment || null,
