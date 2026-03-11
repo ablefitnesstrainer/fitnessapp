@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { CategoryScale, Chart as ChartJS, Legend, LineElement, LinearScale, PointElement, Tooltip } from "chart.js";
 import { Line } from "react-chartjs-2";
+import { useState } from "react";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend);
 
@@ -11,6 +12,7 @@ export function CoachDashboard({
   templates,
   contractFunnel,
   checkins,
+  contractQueue,
   priorityQueue,
   overdueCheckins
 }: {
@@ -25,6 +27,18 @@ export function CoachDashboard({
     completionRate: number;
   };
   checkins: { created_at: string; adherence: number | null; nutrition_adherence_percent?: number | null }[];
+  contractQueue: {
+    clientId: string;
+    clientUserId: string;
+    clientName: string;
+    status: string;
+    contractId: string | null;
+    documentId: number | null;
+    documentSlug: string | null;
+    sentAt: string | null;
+    openedAt: string | null;
+    completedAt: string | null;
+  }[];
   priorityQueue: {
     clientId: string;
     clientUserId: string;
@@ -55,6 +69,85 @@ export function CoachDashboard({
         tension: 0.35
       }
     ]
+  };
+  const [localContractQueue, setLocalContractQueue] = useState(contractQueue);
+  const [queueStatus, setQueueStatus] = useState<string | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
+
+  const sendContract = async (clientId: string, clientName: string) => {
+    setPending(`send-${clientId}`);
+    setQueueStatus(null);
+
+    const res = await fetch("/api/contracts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ client_id: clientId })
+    });
+    const payload = await res.json();
+    if (!res.ok) {
+      setQueueStatus(payload.error || `Failed to send contract to ${clientName}`);
+      setPending(null);
+      return;
+    }
+
+    setLocalContractQueue((prev) =>
+      prev.map((item) =>
+        item.clientId === clientId
+          ? {
+              ...item,
+              status: payload.contract?.status || "sent",
+              contractId: payload.contract?.id || item.contractId,
+              documentId: payload.contract?.document_id ?? item.documentId,
+              documentSlug: payload.contract?.document_slug ?? item.documentSlug,
+              sentAt: payload.contract?.sent_at ?? item.sentAt,
+              openedAt: payload.contract?.opened_at ?? item.openedAt,
+              completedAt: payload.contract?.completed_at ?? item.completedAt
+            }
+          : item
+      )
+    );
+    setQueueStatus(`Contract sent to ${clientName}.`);
+    setPending(null);
+  };
+
+  const refreshContract = async (clientId: string, clientName: string) => {
+    setPending(`refresh-${clientId}`);
+    setQueueStatus(null);
+
+    const res = await fetch(`/api/contracts?client_id=${encodeURIComponent(clientId)}&refresh=1`, { cache: "no-store" });
+    const payload = await res.json();
+    if (!res.ok) {
+      setQueueStatus(payload.error || `Failed to refresh contract for ${clientName}`);
+      setPending(null);
+      return;
+    }
+
+    if (!payload.contract) {
+      setPending(null);
+      return;
+    }
+
+    setLocalContractQueue((prev) =>
+      prev
+        .map((item) =>
+          item.clientId === clientId
+            ? {
+                ...item,
+                status: payload.contract?.status || "sent",
+                contractId: payload.contract?.id || item.contractId,
+                documentId: payload.contract?.document_id ?? item.documentId,
+                documentSlug: payload.contract?.document_slug ?? item.documentSlug,
+                sentAt: payload.contract?.sent_at ?? item.sentAt,
+                openedAt: payload.contract?.opened_at ?? item.openedAt,
+                completedAt: payload.contract?.completed_at ?? item.completedAt
+              }
+            : item
+        )
+        .filter((item) => item.status !== "completed")
+    );
+
+    setQueueStatus(`Contract status refreshed for ${clientName}.`);
+    setPending(null);
   };
 
   return (
@@ -110,6 +203,61 @@ export function CoachDashboard({
       <div className="card">
         <h2 className="mb-4 text-xl font-bold">Adherence Trend</h2>
         <Line data={chartData} options={{ plugins: { legend: { display: false } } }} />
+      </div>
+      <div className="card">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-xl font-bold">Needs Contract</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Unsigned clients</p>
+        </div>
+        {queueStatus && <p className="mb-3 text-sm text-slate-700">{queueStatus}</p>}
+        <div className="space-y-3">
+          {localContractQueue.length === 0 && <p className="text-sm text-slate-600">All contracts are complete.</p>}
+          {localContractQueue.map((item) => {
+            const badgeClass =
+              item.status === "opened" || item.status === "viewed"
+                ? "bg-blue-100 text-blue-700"
+                : item.status === "sent"
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-slate-100 text-slate-700";
+            const statusLabel = item.status.replaceAll("_", " ");
+            const contractUrl = item.documentSlug
+              ? `https://breezedoc.com/documents/${item.documentSlug}/view`
+              : item.documentId
+                ? `https://breezedoc.com/documents/${item.documentId}/view`
+                : null;
+
+            return (
+              <article key={item.clientId} className="rounded-xl border border-slate-200 bg-slate-50/70 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="font-semibold text-slate-900">{item.clientName}</p>
+                    <p className="text-xs text-slate-600">
+                      {item.sentAt ? `Sent ${new Date(item.sentAt).toLocaleDateString()}` : "Not sent yet"}
+                      {item.openedAt ? ` | Opened ${new Date(item.openedAt).toLocaleDateString()}` : ""}
+                    </p>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${badgeClass}`}>{statusLabel}</span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button className="btn-secondary" onClick={() => sendContract(item.clientId, item.clientName)} disabled={pending === `send-${item.clientId}`}>
+                    {pending === `send-${item.clientId}` ? "Sending..." : item.contractId ? "Resend" : "Send"}
+                  </button>
+                  <button className="btn-secondary" onClick={() => refreshContract(item.clientId, item.clientName)} disabled={pending === `refresh-${item.clientId}`}>
+                    {pending === `refresh-${item.clientId}` ? "Refreshing..." : "Refresh"}
+                  </button>
+                  {contractUrl && (
+                    <a href={contractUrl} target="_blank" rel="noreferrer" className="btn-secondary">
+                      Open
+                    </a>
+                  )}
+                  <Link href={`/clients/${item.clientId}`} className="btn-secondary">
+                    Open Profile
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
+        </div>
       </div>
       <div className="card">
         <div className="mb-4 flex items-center justify-between gap-3">

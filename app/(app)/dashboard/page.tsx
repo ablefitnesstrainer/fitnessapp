@@ -38,6 +38,7 @@ export default async function DashboardPage() {
             }
           }
           checkins={data.checkins || []}
+          contractQueue={data.contractQueue || []}
           priorityQueue={data.priorityQueue || []}
           overdueCheckins={data.overdueCheckins || []}
         />

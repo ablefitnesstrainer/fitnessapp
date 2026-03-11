@@ -62,7 +62,7 @@ export async function getDashboardData() {
     clientIds.length
       ? supabase
           .from("client_contracts")
-          .select("client_id,status,created_at")
+          .select("id,client_id,document_id,document_slug,status,sent_at,opened_at,completed_at,created_at")
           .in("client_id", clientIds)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [], error: null })
@@ -89,10 +89,31 @@ export async function getDashboardData() {
     current.push(entry);
     checkinsByClientId.set(entry.client_id, current);
   }
-  const latestContractStatusByClientId = new Map<string, string>();
+  const latestContractByClientId = new Map<
+    string,
+    {
+      id: string;
+      status: string;
+      documentId: number;
+      documentSlug: string | null;
+      sentAt: string | null;
+      openedAt: string | null;
+      completedAt: string | null;
+      createdAt: string;
+    }
+  >();
   for (const entry of contractsRes.data || []) {
-    if (!latestContractStatusByClientId.has(entry.client_id)) {
-      latestContractStatusByClientId.set(entry.client_id, entry.status || "not_sent");
+    if (!latestContractByClientId.has(entry.client_id)) {
+      latestContractByClientId.set(entry.client_id, {
+        id: entry.id,
+        status: entry.status || "not_sent",
+        documentId: Number(entry.document_id),
+        documentSlug: entry.document_slug || null,
+        sentAt: entry.sent_at || null,
+        openedAt: entry.opened_at || null,
+        completedAt: entry.completed_at || null,
+        createdAt: entry.created_at
+      });
     }
   }
 
@@ -196,10 +217,64 @@ export async function getDashboardData() {
     const identity = userById.get(c.user_id);
     return identity?.role === "client";
   }).length;
-  const contractsSent = Array.from(latestContractStatusByClientId.values()).filter((status) => status !== "not_sent").length;
-  const contractsOpened = Array.from(latestContractStatusByClientId.values()).filter((status) => status === "opened" || status === "viewed" || status === "completed").length;
-  const contractsCompleted = Array.from(latestContractStatusByClientId.values()).filter((status) => status === "completed").length;
+  const contractsSent = Array.from(latestContractByClientId.values()).filter((contract) => contract.status !== "not_sent").length;
+  const contractsOpened = Array.from(latestContractByClientId.values()).filter((contract) => contract.status === "opened" || contract.status === "viewed" || contract.status === "completed").length;
+  const contractsCompleted = Array.from(latestContractByClientId.values()).filter((contract) => contract.status === "completed").length;
   const percent = (value: number, total: number) => (total > 0 ? Math.round((value / total) * 100) : 0);
+  const contractQueue = roster
+    .map((client) => {
+      const identity = userById.get(client.user_id);
+      if (!identity || identity.role !== "client") return null;
+      const latest = latestContractByClientId.get(client.id) || null;
+      const status = latest?.status || "not_sent";
+      if (status === "completed") return null;
+      return {
+        clientId: client.id,
+        clientUserId: client.user_id,
+        clientName: displayNameFromIdentity({
+          fullName: identity.full_name,
+          email: identity.email,
+          fallbackId: identity.id
+        }),
+        status,
+        contractId: latest?.id || null,
+        documentId: latest?.documentId || null,
+        documentSlug: latest?.documentSlug || null,
+        sentAt: latest?.sentAt || null,
+        openedAt: latest?.openedAt || null,
+        completedAt: latest?.completedAt || null
+      };
+    })
+    .filter(
+      (
+        item
+      ): item is {
+        clientId: string;
+        clientUserId: string;
+        clientName: string;
+        status: string;
+        contractId: string | null;
+        documentId: number | null;
+        documentSlug: string | null;
+        sentAt: string | null;
+        openedAt: string | null;
+        completedAt: string | null;
+      } => Boolean(item)
+    )
+    .sort((a, b) => {
+      const rank = (status: string) => {
+        if (status === "not_sent") return 0;
+        if (status === "sent") return 1;
+        if (status === "opened" || status === "viewed") return 2;
+        return 3;
+      };
+      const rankDiff = rank(a.status) - rank(b.status);
+      if (rankDiff !== 0) return rankDiff;
+      const aTs = a.sentAt ? new Date(a.sentAt).getTime() : 0;
+      const bTs = b.sentAt ? new Date(b.sentAt).getTime() : 0;
+      return aTs - bTs;
+    })
+    .slice(0, 12);
 
   return {
     counts: {
@@ -215,6 +290,7 @@ export async function getDashboardData() {
       completionRate: percent(contractsCompleted, contractsSent)
     },
     checkins: checkinsRes.data,
+    contractQueue,
     priorityQueue,
     overdueCheckins
   };
