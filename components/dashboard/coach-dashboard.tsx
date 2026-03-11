@@ -90,6 +90,7 @@ export function CoachDashboard({
   const [localContractQueue, setLocalContractQueue] = useState(contractQueue);
   const [queueStatus, setQueueStatus] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  const [activityFilter, setActivityFilter] = useState<"all" | "checkin" | "workout" | "contract">("all");
 
   const sendContract = async (clientId: string, clientName: string) => {
     setPending(`send-${clientId}`);
@@ -166,6 +167,8 @@ export function CoachDashboard({
     setQueueStatus(`Contract status refreshed for ${clientName}.`);
     setPending(null);
   };
+  const filteredActivity =
+    activityFilter === "all" ? activityFeed : activityFeed.filter((item) => item.type === activityFilter);
 
   return (
     <div className="space-y-6">
@@ -256,9 +259,29 @@ export function CoachDashboard({
           <h2 className="text-xl font-bold">This Week Activity</h2>
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Workouts, check-ins, and signatures</p>
         </div>
+        <div className="mb-4 flex flex-wrap gap-2">
+          {[
+            { key: "all", label: "All" },
+            { key: "checkin", label: "Check-ins" },
+            { key: "workout", label: "Workouts" },
+            { key: "contract", label: "Contracts" }
+          ].map((filter) => (
+            <button
+              key={filter.key}
+              className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                activityFilter === filter.key
+                  ? "bg-blue-600 text-white"
+                  : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+              onClick={() => setActivityFilter(filter.key as "all" | "checkin" | "workout" | "contract")}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
         <div className="space-y-2">
-          {activityFeed.length === 0 && <p className="text-sm text-slate-600">No client activity in the last 7 days.</p>}
-          {activityFeed.map((item, index) => {
+          {filteredActivity.length === 0 && <p className="text-sm text-slate-600">No activity for this filter in the last 7 days.</p>}
+          {filteredActivity.map((item, index) => {
             const badgeClass =
               item.type === "workout"
                 ? "bg-emerald-100 text-emerald-700"
