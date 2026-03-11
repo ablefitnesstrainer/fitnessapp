@@ -24,7 +24,7 @@ export default async function WorkoutsPage() {
 
   const { data: assignment } = await supabase
     .from("program_assignments")
-    .select("template_id,start_week")
+    .select("template_id,start_week,current_week_number,current_day_number")
     .eq("client_id", client.id)
     .eq("active", true)
     .order("created_at", { ascending: false })
@@ -40,18 +40,22 @@ export default async function WorkoutsPage() {
     );
   }
 
-  const { data: week } = await supabase
+  const { data: weeks } = await supabase
     .from("program_weeks")
-    .select("id")
+    .select("id,week_number")
     .eq("template_id", assignment.template_id)
-    .eq("week_number", assignment.start_week)
-    .maybeSingle();
+    .order("week_number", { ascending: true });
+
+  const currentWeekNumber = assignment.current_week_number ?? assignment.start_week ?? 1;
+  const week = (weeks || []).find((entry) => entry.week_number === currentWeekNumber) || (weeks || [])[0];
 
   if (!week) {
     return <p className="text-sm text-red-600">Assigned template has no week data.</p>;
   }
 
-  const { data: day } = await supabase.from("program_days").select("id,day_number").eq("week_id", week.id).order("day_number").limit(1).maybeSingle();
+  const { data: days } = await supabase.from("program_days").select("id,day_number").eq("week_id", week.id).order("day_number");
+  const currentDayNumber = assignment.current_day_number ?? 1;
+  const day = (days || []).find((entry) => entry.day_number === currentDayNumber) || (days || [])[0];
 
   if (!day) {
     return <p className="text-sm text-red-600">No training days found in assigned week.</p>;
@@ -59,7 +63,7 @@ export default async function WorkoutsPage() {
 
   const { data: dayExercises } = await supabase
     .from("program_exercises")
-    .select("id,exercise_id,sets,reps,warmup_sets,exercises(name,primary_muscle,equipment)")
+    .select("id,exercise_id,sets,reps,warmup_sets,exercises(name,primary_muscle,equipment,video_url)")
     .eq("day_id", day.id)
     .order("order_index");
 
@@ -77,13 +81,24 @@ export default async function WorkoutsPage() {
       : (entry.exercises as { primary_muscle?: string | null })?.primary_muscle || null,
     equipment: Array.isArray(entry.exercises)
       ? entry.exercises[0]?.equipment || null
-      : (entry.exercises as { equipment?: string | null })?.equipment || null
+      : (entry.exercises as { equipment?: string | null })?.equipment || null,
+    video_url: Array.isArray(entry.exercises)
+      ? entry.exercises[0]?.video_url || null
+      : (entry.exercises as { video_url?: string | null })?.video_url || null
   }));
 
   return (
     <section className="space-y-4">
       <h1 className="text-2xl font-bold">{appUser.role === "client" ? "Workout Logging" : "My Workout Logging"}</h1>
-      <WorkoutLogger clientId={client.id} dayId={day.id} exercises={normalizedExercises} exerciseOptions={options || []} />
+      <WorkoutLogger
+        clientId={client.id}
+        dayId={day.id}
+        weekNumber={week.week_number}
+        dayNumber={day.day_number}
+        dayLabel={`Day ${day.day_number}`}
+        exercises={normalizedExercises}
+        exerciseOptions={options || []}
+      />
     </section>
   );
 }

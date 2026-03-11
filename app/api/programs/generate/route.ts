@@ -150,6 +150,8 @@ export async function POST(request: Request) {
         client_id: assignmentClientId,
         template_id: payload.template_id,
         start_week: 1,
+        current_week_number: 1,
+        current_day_number: 1,
         active: true
       },
       {

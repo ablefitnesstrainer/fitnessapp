@@ -36,6 +36,8 @@ export async function POST(request: Request) {
       client_id: body.client_id,
       template_id: body.template_id,
       start_week: 1,
+      current_week_number: 1,
+      current_day_number: 1,
       active: true
     },
     { onConflict: "client_id,template_id" }
