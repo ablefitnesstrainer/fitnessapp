@@ -24,7 +24,8 @@ function withSecurityHeaders(request: NextRequest, response: NextResponse) {
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
-    "connect-src 'self' https: wss:"
+    "connect-src 'self' https: wss:",
+    "frame-src 'self' https://www.youtube.com https://www.youtube-nocookie.com"
   ].join("; ");
   response.headers.set("Content-Security-Policy", csp);
 
