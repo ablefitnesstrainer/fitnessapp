@@ -16,6 +16,23 @@ export async function POST(request: Request) {
   if ("error" in auth) return auth.error;
   const { supabase, clientId } = auth.context;
 
+  const { data: assignment, error: assignmentError } = await supabase
+    .from("program_assignments")
+    .select("start_on")
+    .eq("client_id", clientId)
+    .eq("active", true)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (assignmentError) return NextResponse.json({ error: assignmentError.message }, { status: 400 });
+  if (assignment?.start_on) {
+    const todayIso = new Date().toISOString().slice(0, 10);
+    if (assignment.start_on > todayIso) {
+      return NextResponse.json({ error: `Program starts on ${assignment.start_on}` }, { status: 403 });
+    }
+  }
+
   const { data: existing, error: existingError } = await supabase
     .from("workout_logs")
     .select("id,started_at,completed_at")

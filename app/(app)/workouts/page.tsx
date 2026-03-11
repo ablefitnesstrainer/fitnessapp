@@ -25,7 +25,7 @@ export default async function WorkoutsPage() {
 
   const { data: assignment } = await supabase
     .from("program_assignments")
-    .select("template_id,start_week,current_week_number,current_day_number")
+    .select("template_id,start_week,current_week_number,current_day_number,start_on")
     .eq("client_id", client.id)
     .eq("active", true)
     .order("created_at", { ascending: false })
@@ -143,19 +143,30 @@ export default async function WorkoutsPage() {
       : (entry.exercises as { video_url?: string | null })?.video_url || null
   }));
 
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const assignmentStartOn = assignment.start_on || todayIso;
+  const startsInFuture = assignmentStartOn > todayIso;
+
   return (
     <section className="space-y-4">
       <h1 className="text-2xl font-bold">{appUser.role === "client" ? "Workout Logging" : "My Workout Logging"}</h1>
+      {startsInFuture && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900">
+          Program start date is scheduled for {new Date(`${assignmentStartOn}T00:00:00`).toLocaleDateString()}.
+        </div>
+      )}
       <WorkoutHistoryCalendar history={workoutHistory} upcoming={upcomingDays} />
-      <WorkoutLogger
-        clientId={client.id}
-        dayId={day.id}
-        weekNumber={week.week_number}
-        dayNumber={day.day_number}
-        dayLabel={`Day ${day.day_number}`}
-        exercises={normalizedExercises}
-        exerciseOptions={options || []}
-      />
+      {!startsInFuture ? (
+        <WorkoutLogger
+          clientId={client.id}
+          dayId={day.id}
+          weekNumber={week.week_number}
+          dayNumber={day.day_number}
+          dayLabel={`Day ${day.day_number}`}
+          exercises={normalizedExercises}
+          exerciseOptions={options || []}
+        />
+      ) : null}
     </section>
   );
 }

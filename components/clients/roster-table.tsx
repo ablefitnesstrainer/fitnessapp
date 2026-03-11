@@ -69,6 +69,9 @@ export function RosterTable({
   const [templateSelections, setTemplateSelections] = useState<Record<string, string>>(() =>
     Object.fromEntries(rows.map((row) => [row.id, templates[0]?.id ?? ""]))
   );
+  const [startDateSelections, setStartDateSelections] = useState<Record<string, string>>(() =>
+    Object.fromEntries(rows.map((row) => [row.id, new Date().toISOString().slice(0, 10)]))
+  );
   const [assignedProgramIds, setAssignedProgramIds] = useState<Set<string>>(new Set(rows.filter((r) => r.hasActiveProgram).map((r) => r.id)));
   const [contractsByClientId, setContractsByClientId] = useState<Record<string, RosterRow["contract"]>>(() =>
     Object.fromEntries(rows.map((row) => [row.id, row.contract]))
@@ -140,7 +143,8 @@ export function RosterTable({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         client_id: clientId,
-        template_id: templateId
+        template_id: templateId,
+        start_on: startDateSelections[clientId] || new Date().toISOString().slice(0, 10)
       })
     });
 
@@ -395,6 +399,41 @@ export function RosterTable({
                           {pending === `program-${row.id}` ? "..." : "Assign Program"}
                         </button>
                       </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          className="btn-secondary"
+                          onClick={() =>
+                            setStartDateSelections((prev) => ({
+                              ...prev,
+                              [row.id]: new Date().toISOString().slice(0, 10)
+                            }))
+                          }
+                        >
+                          Start Today
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => {
+                            const now = new Date();
+                            const day = now.getDay();
+                            const delta = (8 - day) % 7 || 7;
+                            const monday = new Date(now);
+                            monday.setDate(now.getDate() + delta);
+                            setStartDateSelections((prev) => ({
+                              ...prev,
+                              [row.id]: monday.toISOString().slice(0, 10)
+                            }));
+                          }}
+                        >
+                          Next Monday
+                        </button>
+                      </div>
+                      <input
+                        className="input"
+                        type="date"
+                        value={startDateSelections[row.id] || new Date().toISOString().slice(0, 10)}
+                        onChange={(e) => setStartDateSelections((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                      />
 
                       <button className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-100" onClick={() => deleteClient(row.id, row.clientName)} disabled={pending === `delete-${row.id}`}>
                         {pending === `delete-${row.id}` ? "Deleting..." : "Delete Client"}

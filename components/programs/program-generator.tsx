@@ -8,6 +8,7 @@ type Client = { id: string; user_id: string; user_name: string };
 export function ProgramGenerator({ templates, clients }: { templates: Template[]; clients: Client[] }) {
   const [templateId, setTemplateId] = useState(templates[0]?.id ?? "");
   const [clientId, setClientId] = useState(clients[0]?.id ?? "");
+  const [startOn, setStartOn] = useState(new Date().toISOString().slice(0, 10));
   const [weeks, setWeeks] = useState(8);
   const [repProgression, setRepProgression] = useState(1);
   const [setProgressionEvery, setSetProgressionEvery] = useState(4);
@@ -25,6 +26,7 @@ export function ProgramGenerator({ templates, clients }: { templates: Template[]
       body: JSON.stringify({
         template_id: templateId,
         client_id: clientId || null,
+        start_on: startOn,
         weeks,
         rep_progression: repProgression,
         set_progression_every: setSetProgressionEvery,
@@ -82,6 +84,29 @@ export function ProgramGenerator({ templates, clients }: { templates: Template[]
               </option>
             ))}
           </select>
+        </div>
+        <div>
+          <label className="label">Program start date</label>
+          <input className="input" type="date" value={startOn} onChange={(e) => setStartOn(e.target.value)} />
+        </div>
+        <div className="flex gap-2 self-end">
+          <button className="btn-secondary" type="button" onClick={() => setStartOn(new Date().toISOString().slice(0, 10))}>
+            Start Today
+          </button>
+          <button
+            className="btn-secondary"
+            type="button"
+            onClick={() => {
+              const now = new Date();
+              const day = now.getDay();
+              const delta = (8 - day) % 7 || 7;
+              const monday = new Date(now);
+              monday.setDate(now.getDate() + delta);
+              setStartOn(monday.toISOString().slice(0, 10));
+            }}
+          >
+            Next Monday
+          </button>
         </div>
 
         <div>

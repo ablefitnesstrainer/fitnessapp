@@ -7,6 +7,7 @@ import { ensureSelfClientProfile } from "@/lib/self-client";
 type GeneratePayload = {
   template_id: string;
   client_id?: string | null;
+  start_on?: string | null;
   weeks: number;
   rep_progression: number;
   set_progression_every: number;
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
   if (limited) return limited;
 
   const payload = (await request.json()) as GeneratePayload;
+  const startOn = payload.start_on && /^\d{4}-\d{2}-\d{2}$/.test(payload.start_on) ? payload.start_on : new Date().toISOString().slice(0, 10);
   let assignmentClientId = payload.client_id || null;
   if (assignmentClientId === "__self__") {
     assignmentClientId = await ensureSelfClientProfile({
@@ -152,6 +154,7 @@ export async function POST(request: Request) {
         start_week: 1,
         current_week_number: 1,
         current_day_number: 1,
+        start_on: startOn,
         active: true
       },
       {
@@ -177,7 +180,8 @@ export async function POST(request: Request) {
       rep_progression: payload.rep_progression,
       set_progression_every: payload.set_progression_every,
       deload_week: payload.deload_week ?? null,
-      assigned_client_id: assignmentClientId
+      assigned_client_id: assignmentClientId,
+      start_on: assignmentClientId ? startOn : null
     }
   });
 

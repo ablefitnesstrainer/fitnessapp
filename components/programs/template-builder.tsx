@@ -21,6 +21,10 @@ export function TemplateBuilder({ exercises }: { exercises: Exercise[] }) {
   const [daysPerWeek, setDaysPerWeek] = useState(4);
   const [experienceLevel, setExperienceLevel] = useState("beginner");
   const [equipmentType, setEquipmentType] = useState("full gym");
+  const [totalWeeks, setTotalWeeks] = useState(8);
+  const [repProgression, setRepProgression] = useState(1);
+  const [setProgressionEvery, setSetProgressionEvery] = useState(4);
+  const [deloadWeek, setDeloadWeek] = useState(7);
   const [days, setDays] = useState<DayPlan[]>([
     {
       day_number: 1,
@@ -99,7 +103,28 @@ export function TemplateBuilder({ exercises }: { exercises: Exercise[] }) {
       return;
     }
 
-    setStatus(`Saved template ${data.template.name}`);
+    if (totalWeeks > 1) {
+      const generateRes = await fetch("/api/programs/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          template_id: data.template.id,
+          weeks: totalWeeks,
+          rep_progression: repProgression,
+          set_progression_every: setProgressionEvery,
+          deload_week: deloadWeek
+        })
+      });
+      const generatePayload = await generateRes.json();
+      if (!generateRes.ok) {
+        setStatus(`Template saved, but week auto-population failed: ${generatePayload.error || "Unknown error"}`);
+        setSaving(false);
+        return;
+      }
+      setStatus(`Saved template ${data.template.name} and auto-populated to ${totalWeeks} weeks.`);
+    } else {
+      setStatus(`Saved template ${data.template.name}.`);
+    }
     setSaving(false);
   };
 
@@ -117,7 +142,44 @@ export function TemplateBuilder({ exercises }: { exercises: Exercise[] }) {
         </select>
         <input className="input" placeholder="Experience level" value={experienceLevel} onChange={(e) => setExperienceLevel(e.target.value)} />
         <input className="input" placeholder="Equipment type" value={equipmentType} onChange={(e) => setEquipmentType(e.target.value)} />
+        <select className="input" value={totalWeeks} onChange={(e) => setTotalWeeks(Number(e.target.value))}>
+          {[1, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((wk) => (
+            <option key={wk} value={wk}>
+              {wk === 1 ? "1 week (no auto-population)" : `${wk} weeks total`}
+            </option>
+          ))}
+        </select>
+        <input
+          className="input"
+          type="number"
+          min={0}
+          max={3}
+          value={repProgression}
+          onChange={(e) => setRepProgression(Number(e.target.value))}
+          placeholder="Rep progression / week"
+        />
+        <input
+          className="input"
+          type="number"
+          min={2}
+          max={8}
+          value={setProgressionEvery}
+          onChange={(e) => setSetProgressionEvery(Number(e.target.value))}
+          placeholder="Add 1 set every N weeks"
+        />
+        <input
+          className="input"
+          type="number"
+          min={1}
+          max={24}
+          value={deloadWeek}
+          onChange={(e) => setDeloadWeek(Number(e.target.value))}
+          placeholder="Deload week"
+        />
       </div>
+      <p className="text-sm text-slate-600">
+        Build Week 1 here. On save, the app can auto-populate Weeks 2-{totalWeeks} using your progression settings.
+      </p>
 
       {days.map((day, dayIndex) => (
         <section key={day.day_number} className="card space-y-3">

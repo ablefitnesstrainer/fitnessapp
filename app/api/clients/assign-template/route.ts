@@ -15,10 +15,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const body = (await request.json()) as { client_id: string; template_id: string };
+  const body = (await request.json()) as { client_id: string; template_id: string; start_on?: string | null };
   if (!body.client_id || !body.template_id) {
     return NextResponse.json({ error: "client_id and template_id are required" }, { status: 400 });
   }
+
+  const startOn = body.start_on && /^\d{4}-\d{2}-\d{2}$/.test(body.start_on) ? body.start_on : new Date().toISOString().slice(0, 10);
 
   if (appUser.role === "coach") {
     const [{ data: client }, { data: template }] = await Promise.all([
@@ -38,6 +40,7 @@ export async function POST(request: Request) {
       start_week: 1,
       current_week_number: 1,
       current_day_number: 1,
+      start_on: startOn,
       active: true
     },
     { onConflict: "client_id,template_id" }
@@ -54,7 +57,7 @@ export async function POST(request: Request) {
     action: "program.assign_template",
     entityType: "client",
     entityId: body.client_id,
-    metadata: { template_id: body.template_id, actor_role: appUser.role }
+    metadata: { template_id: body.template_id, actor_role: appUser.role, start_on: startOn }
   });
 
   return NextResponse.json({ ok: true });
