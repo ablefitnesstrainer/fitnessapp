@@ -23,6 +23,7 @@ function main() {
   assert(existsSync(resolve(root, "app/(app)/admin/security/settings/page.tsx")), "Missing admin security settings page");
   assert(existsSync(resolve(root, "app/api/auth/login/route.ts")), "Missing server-side login route");
   assert(existsSync(resolve(root, "app/api/contracts/route.ts")), "Missing contracts API route");
+  assert(existsSync(resolve(root, "app/api/contracts/webhook/route.ts")), "Missing contracts webhook route");
   assert(existsSync(resolve(root, "app/api/admin/security-settings/route.ts")), "Missing security settings API route");
   assert(existsSync(resolve(root, "lib/security-controls.ts")), "Missing security controls helper");
   assert(existsSync(resolve(root, "supabase/migrations/0018_security_rate_limits_and_lockouts.sql")), "Missing security migration");
@@ -39,6 +40,7 @@ function main() {
   assertIncludes("app/api/exercises/import/route.ts", "enforceRateLimit");
   assertIncludes("app/api/admin/security-settings/route.ts", "security.settings_update");
   assertIncludes("app/api/contracts/route.ts", "contracts.send");
+  assertIncludes("app/api/contracts/webhook/route.ts", "Invalid webhook signature");
 
   console.log("Security regression check passed.");
 }
