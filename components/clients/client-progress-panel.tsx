@@ -24,10 +24,28 @@ type TimelineEvent = {
   detail?: string;
 };
 
+type WorkoutHistoryEntry = {
+  id: string;
+  started_at: string | null;
+  completed_at: string | null;
+  duration_minutes: number | null;
+  total_volume: number | null;
+  week_number: number | null;
+  day_number: number | null;
+};
+
+type UpcomingWorkoutEntry = {
+  week_number: number;
+  day_number: number;
+  is_current: boolean;
+};
+
 export function ClientProgressPanel({ clientId }: { clientId: string }) {
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [workoutHistory, setWorkoutHistory] = useState<WorkoutHistoryEntry[]>([]);
+  const [upcomingWorkouts, setUpcomingWorkouts] = useState<UpcomingWorkoutEntry[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [photoForm, setPhotoForm] = useState({ photo_url: "", caption: "", taken_at: new Date().toISOString().slice(0, 10) });
@@ -36,13 +54,15 @@ export function ClientProgressPanel({ clientId }: { clientId: string }) {
   const [compareIds, setCompareIds] = useState<string[]>([]);
 
   const load = async () => {
-    const [progressRes, timelineRes] = await Promise.all([
+    const [progressRes, timelineRes, workoutHistoryRes] = await Promise.all([
       fetch(`/api/clients/progress?client_id=${encodeURIComponent(clientId)}`, { cache: "no-store" }),
-      fetch(`/api/clients/timeline?client_id=${encodeURIComponent(clientId)}`, { cache: "no-store" })
+      fetch(`/api/clients/timeline?client_id=${encodeURIComponent(clientId)}`, { cache: "no-store" }),
+      fetch(`/api/clients/workout-history?client_id=${encodeURIComponent(clientId)}`, { cache: "no-store" })
     ]);
 
     const progressPayload = await progressRes.json();
     const timelinePayload = await timelineRes.json();
+    const workoutHistoryPayload = await workoutHistoryRes.json();
     if (!progressRes.ok) {
       setStatus(progressPayload.error || "Failed to load progress");
       return;
@@ -51,10 +71,16 @@ export function ClientProgressPanel({ clientId }: { clientId: string }) {
       setStatus(timelinePayload.error || "Failed to load timeline");
       return;
     }
+    if (!workoutHistoryRes.ok) {
+      setStatus(workoutHistoryPayload.error || "Failed to load workout history");
+      return;
+    }
 
     setPhotos(progressPayload.photos || []);
     setNotes(progressPayload.notes || []);
     setTimeline(timelinePayload.events || []);
+    setWorkoutHistory(workoutHistoryPayload.history || []);
+    setUpcomingWorkouts(workoutHistoryPayload.upcoming || []);
   };
 
   useEffect(() => {
@@ -271,6 +297,68 @@ export function ClientProgressPanel({ clientId }: { clientId: string }) {
           </div>
         </div>
       )}
+
+      <div className="card">
+        <h3 className="mb-3 text-lg font-semibold">Workout Sessions</h3>
+        <div className="grid gap-3 lg:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Upcoming</p>
+            <div className="mt-2 space-y-2">
+              {upcomingWorkouts.length ? (
+                upcomingWorkouts.map((entry) => (
+                  <div key={`${entry.week_number}-${entry.day_number}`} className="flex items-center justify-between rounded-lg border border-slate-200 bg-white px-3 py-2">
+                    <p className="text-sm font-medium text-slate-800">
+                      Week {entry.week_number} • Day {entry.day_number}
+                    </p>
+                    {entry.is_current ? (
+                      <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700">Current</span>
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">Queued</span>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-slate-600">No active assignment schedule.</p>
+              )}
+            </div>
+          </div>
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Recent Completed</p>
+            <div className="mt-2 max-h-64 overflow-auto rounded-lg border border-slate-200 bg-white">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs text-slate-500">
+                    <th className="px-2 py-2 font-semibold">Date</th>
+                    <th className="px-2 py-2 font-semibold">Day</th>
+                    <th className="px-2 py-2 font-semibold">Min</th>
+                    <th className="px-2 py-2 font-semibold">Volume</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {workoutHistory.length ? (
+                    workoutHistory.map((entry) => (
+                      <tr key={entry.id} className="border-b border-slate-100">
+                        <td className="px-2 py-2 text-slate-700">{entry.completed_at ? new Date(entry.completed_at).toLocaleDateString() : "-"}</td>
+                        <td className="px-2 py-2 text-slate-700">
+                          {entry.week_number && entry.day_number ? `W${entry.week_number}D${entry.day_number}` : "-"}
+                        </td>
+                        <td className="px-2 py-2 text-slate-700">{entry.duration_minutes ?? "-"}</td>
+                        <td className="px-2 py-2 text-slate-700">{entry.total_volume ? Math.round(entry.total_volume).toLocaleString() : "0"}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td className="px-2 py-3 text-slate-500" colSpan={4}>
+                        No completed workouts yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <div className="card">
         <h3 className="mb-3 text-lg font-semibold">Client Timeline</h3>
