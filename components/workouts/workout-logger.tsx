@@ -48,6 +48,25 @@ type PendingCommit = {
   weight: number;
 };
 
+type CircuitGroup = {
+  id: string;
+  label: string;
+  rounds: number;
+  exerciseProgramIds: string[];
+};
+
+type CircuitExerciseMeta = {
+  groupId: string;
+  position: number;
+};
+
+type CircuitProgressState = {
+  started: boolean;
+  completed: boolean;
+  currentRound: number;
+  currentExercise: number;
+};
+
 const normalizeEquipment = (equipment: string | null) => (equipment || "").trim().toLowerCase();
 const isBodyweightExercise = (equipment: string | null) => {
   const normalized = normalizeEquipment(equipment);
@@ -134,6 +153,73 @@ export function WorkoutLogger({
   const [timer, setTimer] = useState<number | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [completing, setCompleting] = useState(false);
+  const [{ groupsById: circuitGroupsById, exerciseMeta: circuitExerciseMetaByProgramId }, setCircuitState] = useState<{
+    groupsById: Record<string, CircuitGroup>;
+    exerciseMeta: Record<string, CircuitExerciseMeta>;
+  }>({
+    groupsById: {},
+    exerciseMeta: {}
+  });
+  const [circuitProgress, setCircuitProgress] = useState<Record<string, CircuitProgressState>>({});
+
+  useEffect(() => {
+    const groupsById: Record<string, CircuitGroup> = {};
+    const exerciseMeta: Record<string, CircuitExerciseMeta> = {};
+
+    let idx = 0;
+    while (idx < activeExercises.length) {
+      const exercise = activeExercises[idx];
+      if (exercise.block_type !== "circuit") {
+        idx += 1;
+        continue;
+      }
+
+      const label = exercise.circuit_label?.trim() || "Circuit";
+      const rounds = Math.max(1, Number(exercise.circuit_rounds || 3));
+      const groupId = `${label}::${rounds}::${idx}`;
+      const exerciseProgramIds: string[] = [];
+
+      let cursor = idx;
+      while (cursor < activeExercises.length) {
+        const candidate = activeExercises[cursor];
+        const candidateLabel = candidate.circuit_label?.trim() || "Circuit";
+        const candidateRounds = Math.max(1, Number(candidate.circuit_rounds || 3));
+        if (candidate.block_type !== "circuit" || candidateLabel !== label || candidateRounds !== rounds) break;
+        exerciseProgramIds.push(candidate.program_exercise_id);
+        exerciseMeta[candidate.program_exercise_id] = {
+          groupId,
+          position: exerciseProgramIds.length - 1
+        };
+        cursor += 1;
+      }
+
+      groupsById[groupId] = {
+        id: groupId,
+        label,
+        rounds,
+        exerciseProgramIds
+      };
+
+      idx = cursor;
+    }
+
+    setCircuitState({ groupsById, exerciseMeta });
+  }, [activeExercises]);
+
+  useEffect(() => {
+    setCircuitProgress((prev) => {
+      const next: Record<string, CircuitProgressState> = {};
+      for (const groupId of Object.keys(circuitGroupsById)) {
+        next[groupId] = prev[groupId] || {
+          started: false,
+          completed: false,
+          currentRound: 1,
+          currentExercise: 0
+        };
+      }
+      return next;
+    });
+  }, [circuitGroupsById]);
 
   const queueStorageKey = useMemo(() => {
     if (!sessionLogId) return null;
@@ -407,10 +493,10 @@ export function WorkoutLogger({
 
   const commitSetFromUi = async (programExerciseId: string, isWarmup: boolean, setIndex: number) => {
     const exercise = activeExercises.find((entry) => entry.program_exercise_id === programExerciseId);
-    if (!exercise) return;
+    if (!exercise) return false;
     const section = isWarmup ? "warmups" : "working";
     const row = setsByExercise[programExerciseId]?.[section]?.[setIndex];
-    if (!row) return;
+    if (!row) return false;
 
     const payload: PendingCommit = {
       programExerciseId,
@@ -426,6 +512,7 @@ export function WorkoutLogger({
       const savedAt = await commitSet(payload);
       updateExerciseRow(programExerciseId, isWarmup, setIndex, { status: "saved", savedAt });
       queueRemove(payload);
+      return true;
     } catch (error) {
       if (!navigator.onLine) {
         queuePush(payload);
@@ -434,7 +521,153 @@ export function WorkoutLogger({
         updateExerciseRow(programExerciseId, isWarmup, setIndex, { status: "error" });
         setStatus(error instanceof Error ? error.message : "Failed to save set");
       }
+      return false;
     }
+  };
+
+  const commitAllSetsForExercise = useCallback(
+    async (programExerciseId: string) => {
+      const state = setsByExercise[programExerciseId];
+      if (!state) return false;
+
+      let allOk = true;
+      for (let idx = 0; idx < state.warmups.length; idx += 1) {
+        const ok = await commitSetFromUi(programExerciseId, true, idx);
+        allOk = allOk && ok;
+      }
+      for (let idx = 0; idx < state.working.length; idx += 1) {
+        const ok = await commitSetFromUi(programExerciseId, false, idx);
+        allOk = allOk && ok;
+      }
+      return allOk;
+    },
+    [setsByExercise]
+  );
+
+  const startCircuit = (groupId: string) => {
+    setCircuitProgress((prev) => ({
+      ...prev,
+      [groupId]: {
+        ...(prev[groupId] || {
+          started: false,
+          completed: false,
+          currentRound: 1,
+          currentExercise: 0
+        }),
+        started: true,
+        completed: false
+      }
+    }));
+  };
+
+  const resetCircuit = (groupId: string) => {
+    setCircuitProgress((prev) => ({
+      ...prev,
+      [groupId]: {
+        started: false,
+        completed: false,
+        currentRound: 1,
+        currentExercise: 0
+      }
+    }));
+    setStatus("Circuit reset.");
+  };
+
+  const moveCircuitExercise = (groupId: string, direction: 1 | -1) => {
+    const group = circuitGroupsById[groupId];
+    if (!group) return;
+    setCircuitProgress((prev) => {
+      const current = prev[groupId];
+      if (!current) return prev;
+      const nextIndex = Math.min(group.exerciseProgramIds.length - 1, Math.max(0, current.currentExercise + direction));
+      return {
+        ...prev,
+        [groupId]: {
+          ...current,
+          started: true,
+          currentExercise: nextIndex
+        }
+      };
+    });
+  };
+
+  const advanceCircuitRound = (groupId: string) => {
+    const group = circuitGroupsById[groupId];
+    if (!group) return;
+    setCircuitProgress((prev) => {
+      const current = prev[groupId];
+      if (!current) return prev;
+      if (current.currentRound >= group.rounds) {
+        return {
+          ...prev,
+          [groupId]: {
+            ...current,
+            started: true,
+            completed: true,
+            currentExercise: group.exerciseProgramIds.length - 1
+          }
+        };
+      }
+      return {
+        ...prev,
+        [groupId]: {
+          ...current,
+          started: true,
+          currentRound: current.currentRound + 1,
+          currentExercise: 0
+        }
+      };
+    });
+  };
+
+  const completeCircuitExercise = async (programExerciseId: string) => {
+    const meta = circuitExerciseMetaByProgramId[programExerciseId];
+    if (!meta) return;
+    const group = circuitGroupsById[meta.groupId];
+    if (!group) return;
+    const progress = circuitProgress[meta.groupId];
+    if (!progress?.started || progress.completed) return;
+
+    const allSaved = await commitAllSetsForExercise(programExerciseId);
+    if (!allSaved) {
+      setStatus("Some sets failed to save. Retry before advancing.");
+      return;
+    }
+
+    setCircuitProgress((prev) => {
+      const current = prev[meta.groupId];
+      if (!current) return prev;
+
+      if (meta.position < group.exerciseProgramIds.length - 1) {
+        return {
+          ...prev,
+          [meta.groupId]: {
+            ...current,
+            currentExercise: meta.position + 1
+          }
+        };
+      }
+
+      if (current.currentRound >= group.rounds) {
+        return {
+          ...prev,
+          [meta.groupId]: {
+            ...current,
+            completed: true,
+            currentExercise: meta.position
+          }
+        };
+      }
+
+      return {
+        ...prev,
+        [meta.groupId]: {
+          ...current,
+          currentRound: current.currentRound + 1,
+          currentExercise: 0
+        }
+      };
+    });
   };
 
   const statusPillClass = (statusValue: SaveStatus) => {
@@ -580,6 +813,11 @@ export function WorkoutLogger({
         const next = exerciseIndex < activeExercises.length - 1 ? activeExercises[exerciseIndex + 1] : null;
         const inCircuit = exercise.block_type === "circuit";
         const circuitLabel = exercise.circuit_label?.trim() || "Circuit";
+        const circuitMeta = circuitExerciseMetaByProgramId[exercise.program_exercise_id];
+        const circuitGroup = circuitMeta ? circuitGroupsById[circuitMeta.groupId] : null;
+        const circuitState = circuitMeta ? circuitProgress[circuitMeta.groupId] : null;
+        const isActiveCircuitExercise =
+          Boolean(circuitMeta && circuitState?.started && !circuitState.completed && circuitState.currentExercise === circuitMeta.position);
         const startsCircuit =
           inCircuit &&
           (!previous ||
@@ -596,15 +834,48 @@ export function WorkoutLogger({
         return (
           <div key={exercise.program_exercise_id} className="space-y-2">
             {startsCircuit && (
-              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2">
+              <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3">
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Circuit Block</p>
                 <p className="text-sm font-semibold text-blue-900">
                   {circuitLabel} • {Math.max(1, Number(exercise.circuit_rounds || 3))} rounds
                 </p>
                 <p className="text-xs text-blue-700">Complete all listed exercises in order, then repeat the block.</p>
+                {circuitMeta && circuitGroup && circuitState && (
+                  <div className="rounded-lg border border-blue-300/70 bg-white/80 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-blue-900">
+                        Round {Math.min(circuitState.currentRound, circuitGroup.rounds)} of {circuitGroup.rounds}
+                      </p>
+                      <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700">
+                        {circuitState.completed ? "Completed" : circuitState.started ? "In progress" : "Ready"}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <button className="btn-secondary" type="button" onClick={() => startCircuit(circuitMeta.groupId)}>
+                        {circuitState.started ? "Resume Circuit" : "Start Circuit"}
+                      </button>
+                      <button className="btn-secondary" type="button" onClick={() => moveCircuitExercise(circuitMeta.groupId, -1)}>
+                        Previous Exercise
+                      </button>
+                      <button className="btn-secondary" type="button" onClick={() => moveCircuitExercise(circuitMeta.groupId, 1)}>
+                        Next Exercise
+                      </button>
+                      <button className="btn-secondary" type="button" onClick={() => advanceCircuitRound(circuitMeta.groupId)}>
+                        Next Round
+                      </button>
+                      <button className="btn-secondary" type="button" onClick={() => resetCircuit(circuitMeta.groupId)}>
+                        Reset Circuit
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
-          <article className="card space-y-4">
+          <article
+            className={`card space-y-4 ${
+              isActiveCircuitExercise ? "border-blue-300 bg-blue-50/30 shadow-lg shadow-blue-200/40" : ""
+            }`}
+          >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold">{exercise.name}</h3>
@@ -629,6 +900,16 @@ export function WorkoutLogger({
                 <button className="btn-secondary" onClick={startTimer}>
                   Rest
                 </button>
+                {inCircuit && circuitMeta && (
+                  <button
+                    className="btn-primary"
+                    type="button"
+                    disabled={Boolean(circuitState?.completed) || !circuitState?.started || !isActiveCircuitExercise}
+                    onClick={() => void completeCircuitExercise(exercise.program_exercise_id)}
+                  >
+                    Complete Exercise
+                  </button>
+                )}
               </div>
             </div>
 

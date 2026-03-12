@@ -168,51 +168,78 @@ export function TemplateBuilder({ exercises }: { exercises: Exercise[] }) {
   return (
     <div className="space-y-4">
       <div className="card grid gap-3 md:grid-cols-2">
-        <input className="input" placeholder="Template name" value={name} onChange={(e) => setName(e.target.value)} />
-        <input className="input" placeholder="Goal type" value={goalType} onChange={(e) => setGoalType(e.target.value)} />
-        <select className="input" value={daysPerWeek} onChange={(e) => setDaysCount(Number(e.target.value))}>
-          {[1, 2, 3, 4, 5, 6, 7].map((d) => (
-            <option key={d} value={d}>
-              {d} days/week
-            </option>
-          ))}
-        </select>
-        <input className="input" placeholder="Experience level" value={experienceLevel} onChange={(e) => setExperienceLevel(e.target.value)} />
-        <input className="input" placeholder="Equipment type" value={equipmentType} onChange={(e) => setEquipmentType(e.target.value)} />
-        <select className="input" value={totalWeeks} onChange={(e) => setTotalWeeks(Number(e.target.value))}>
-          {[1, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((wk) => (
-            <option key={wk} value={wk}>
-              {wk === 1 ? "1 week (no auto-population)" : `${wk} weeks total`}
-            </option>
-          ))}
-        </select>
-        <input
-          className="input"
-          type="number"
-          min={0}
-          max={3}
-          value={repProgression}
-          onChange={(e) => setRepProgression(Number(e.target.value))}
-          placeholder="Rep progression / week"
-        />
-        <input
-          className="input"
-          type="number"
-          min={2}
-          max={8}
-          value={setProgressionEvery}
-          onChange={(e) => setSetProgressionEvery(Number(e.target.value))}
-          placeholder="Add 1 set every N weeks"
-        />
-        <input
-          className="input"
-          type="number"
-          min={1}
-          max={24}
-          value={deloadWeek}
-          onChange={(e) => setDeloadWeek(Number(e.target.value))}
-          placeholder="Deload week"
-        />
+        <div>
+          <label className="label">Template Name</label>
+          <input className="input" placeholder="Template name" value={name} onChange={(e) => setName(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Goal Type</label>
+          <input className="input" placeholder="Goal type" value={goalType} onChange={(e) => setGoalType(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Days Per Week</label>
+          <select className="input" value={daysPerWeek} onChange={(e) => setDaysCount(Number(e.target.value))}>
+            {[1, 2, 3, 4, 5, 6, 7].map((d) => (
+              <option key={d} value={d}>
+                {d} days/week
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">Experience Level</label>
+          <input className="input" placeholder="Experience level" value={experienceLevel} onChange={(e) => setExperienceLevel(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Equipment Type</label>
+          <input className="input" placeholder="Equipment type" value={equipmentType} onChange={(e) => setEquipmentType(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Program Length</label>
+          <select className="input" value={totalWeeks} onChange={(e) => setTotalWeeks(Number(e.target.value))}>
+            {[1, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((wk) => (
+              <option key={wk} value={wk}>
+                {wk === 1 ? "1 week (no auto-population)" : `${wk} weeks total`}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">Rep Progression / Week</label>
+          <input
+            className="input"
+            type="number"
+            min={0}
+            max={3}
+            value={repProgression}
+            onChange={(e) => setRepProgression(Number(e.target.value))}
+            placeholder="Rep progression / week"
+          />
+        </div>
+        <div>
+          <label className="label">Add 1 Set Every N Weeks</label>
+          <input
+            className="input"
+            type="number"
+            min={2}
+            max={8}
+            value={setProgressionEvery}
+            onChange={(e) => setSetProgressionEvery(Number(e.target.value))}
+            placeholder="Add 1 set every N weeks"
+          />
+        </div>
+        <div>
+          <label className="label">Deload Week</label>
+          <input
+            className="input"
+            type="number"
+            min={1}
+            max={24}
+            value={deloadWeek}
+            onChange={(e) => setDeloadWeek(Number(e.target.value))}
+            placeholder="Deload week"
+          />
+        </div>
       </div>
       <p className="text-sm text-slate-600">
         Build Week 1 here. On save, the app can auto-populate Weeks 2-{totalWeeks} using your progression settings.

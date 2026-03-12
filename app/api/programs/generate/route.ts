@@ -28,6 +28,12 @@ function progression(baseSets: number, baseReps: number, week: number, repProgre
   return { sets, reps };
 }
 
+function asFiniteInt(value: unknown, fallback: number, min = 0) {
+  const next = Number(value);
+  if (!Number.isFinite(next)) return fallback;
+  return Math.max(min, Math.floor(next));
+}
+
 export async function POST(request: Request) {
   const supabase = createClient();
   const {
@@ -50,6 +56,11 @@ export async function POST(request: Request) {
   if (limited) return limited;
 
   const payload = (await request.json()) as GeneratePayload;
+  const safeWeeks = asFiniteInt(payload.weeks, 1, 1);
+  const safeRepProgression = asFiniteInt(payload.rep_progression, 0, 0);
+  const safeSetProgressionEvery = asFiniteInt(payload.set_progression_every, 4, 1);
+  const safeDeloadWeek = payload.deload_week ? asFiniteInt(payload.deload_week, 0, 1) : undefined;
+
   const startOn = payload.start_on && /^\d{4}-\d{2}-\d{2}$/.test(payload.start_on) ? payload.start_on : new Date().toISOString().slice(0, 10);
   let assignmentClientId = payload.client_id || null;
   if (assignmentClientId === "__self__") {
@@ -97,7 +108,7 @@ export async function POST(request: Request) {
 
   let createdWeeks = 0;
 
-  for (let weekNumber = 2; weekNumber <= payload.weeks; weekNumber += 1) {
+  for (let weekNumber = 2; weekNumber <= safeWeeks; weekNumber += 1) {
     const { data: week, error: weekInsertError } = await supabase
       .from("program_weeks")
       .insert({ template_id: payload.template_id, week_number: weekNumber })
@@ -124,7 +135,9 @@ export async function POST(request: Request) {
 
       const dayExercises = baseExercises.filter((exercise) => exercise.day_id === day.id);
       const payloadExercises = dayExercises.map((exercise) => {
-        const target = progression(exercise.sets, exercise.reps, weekNumber, payload.rep_progression, payload.set_progression_every, payload.deload_week);
+        const baseSets = asFiniteInt(exercise.sets, 3, 1);
+        const baseReps = asFiniteInt(exercise.reps, 8, 1);
+        const target = progression(baseSets, baseReps, weekNumber, safeRepProgression, safeSetProgressionEvery, safeDeloadWeek);
         return {
           day_id: newDay.id,
           exercise_id: exercise.exercise_id,
@@ -179,10 +192,10 @@ export async function POST(request: Request) {
     entityId: payload.template_id,
     metadata: {
       created_weeks: createdWeeks,
-      total_weeks: payload.weeks,
-      rep_progression: payload.rep_progression,
-      set_progression_every: payload.set_progression_every,
-      deload_week: payload.deload_week ?? null,
+      total_weeks: safeWeeks,
+      rep_progression: safeRepProgression,
+      set_progression_every: safeSetProgressionEvery,
+      deload_week: safeDeloadWeek ?? null,
       assigned_client_id: assignmentClientId,
       start_on: assignmentClientId ? startOn : null
     }

@@ -181,41 +181,43 @@ export function Navigation({ role, unreadMessages = 0 }: { role: Role; unreadMes
   const visibleLinks = links.filter((link) => !link.roles || link.roles.includes(role));
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-72 shrink-0 border-r border-slate-200/80 bg-white/85 p-5 backdrop-blur lg:block">
-      <div className="mb-6 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 p-4 text-white shadow-lg shadow-blue-200">
-        <div className="flex items-center gap-3">
-          <BrandLogo size={42} className="border border-white/30" />
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-50">Able Fitness</p>
-            <h2 className="text-2xl font-bold">{title}</h2>
+    <aside className="sticky top-0 hidden h-screen w-72 shrink-0 overflow-y-auto border-r border-slate-200/80 bg-white/85 p-5 backdrop-blur lg:block">
+      <div className="flex min-h-full flex-col">
+        <div className="mb-6 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 p-4 text-white shadow-lg shadow-blue-200">
+          <div className="flex items-center gap-3">
+            <BrandLogo size={42} className="border border-white/30" />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-50">Able Fitness</p>
+              <h2 className="text-2xl font-bold">{title}</h2>
+            </div>
           </div>
+          <p className="mt-1 text-sm text-blue-50">{subtitle}</p>
         </div>
-        <p className="mt-1 text-sm text-blue-50">{subtitle}</p>
-      </div>
 
-      <nav className="space-y-1.5">
-        {visibleLinks.map((link) => {
-          const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
-          return (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={clsx(
-                "flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition",
-                active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-              )}
-            >
-              {link.icon}
-              {link.label}
-              {link.href === "/messages" && unreadMessages > 0 && (
-                <span className="ml-auto rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
-                  {unreadMessages > 99 ? "99+" : unreadMessages}
-                </span>
-              )}
-            </Link>
-          );
-        })}
-      </nav>
+        <nav className="flex-1 space-y-1.5 pb-4 pr-1">
+          {visibleLinks.map((link) => {
+            const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={clsx(
+                  "flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition",
+                  active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                )}
+              >
+                {link.icon}
+                {link.label}
+                {link.href === "/messages" && unreadMessages > 0 && (
+                  <span className="ml-auto rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                    {unreadMessages > 99 ? "99+" : unreadMessages}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+      </div>
     </aside>
   );
 }
