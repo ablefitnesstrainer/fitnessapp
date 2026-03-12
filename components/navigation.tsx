@@ -63,6 +63,15 @@ const links: NavLink[] = [
     )
   },
   {
+    href: "/challenges",
+    label: "Challenges",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+        <path d="M12 2l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 15.6 6.7 18l1-5.8L3.5 8.2l5.9-.9L12 2z" stroke="currentColor" strokeWidth="1.7" />
+      </svg>
+    )
+  },
+  {
     href: "/habits",
     label: "Habits",
     roles: ["client"],
@@ -137,6 +146,26 @@ const links: NavLink[] = [
     roles: ["admin"],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className={iconClass}><path d="M12 8a4 4 0 100 8 4 4 0 000-8zm9 4l-2.1.8a7.8 7.8 0 01-.5 1.2l1 2-2 2-2-1c-.4.2-.8.3-1.2.5L12 21l-2.2-2.1c-.4-.1-.8-.3-1.2-.5l-2 1-2-2 1-2c-.2-.4-.3-.8-.5-1.2L3 12l2.1-2.2c.1-.4.3-.8.5-1.2l-1-2 2-2 2 1c.4-.2.8-.3 1.2-.5L12 3l2.2 2.1c.4.1.8.3 1.2.5l2-1 2 2-1 2c.2.4.3.8.5 1.2L21 12z" stroke="currentColor" strokeWidth="1.4"/></svg>
+    )
+  },
+  {
+    href: "/admin/security/operations",
+    label: "Security Ops",
+    roles: ["admin"],
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+        <path d="M4 6h16M4 12h16M4 18h10" stroke="currentColor" strokeWidth="1.7" />
+      </svg>
+    )
+  },
+  {
+    href: "/community/moderation",
+    label: "Moderation",
+    roles: ["admin", "coach"],
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+        <path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3zm-3 9l2 2 4-4" stroke="currentColor" strokeWidth="1.7" />
+      </svg>
     )
   }
 ];

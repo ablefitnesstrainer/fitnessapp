@@ -144,6 +144,9 @@ export default async function AdminSecurityPage({ searchParams }: { searchParams
         <Link href="/admin/security/settings" className="mt-2 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800">
           Open security settings
         </Link>
+        <Link href="/admin/security/operations" className="mt-2 ml-4 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800">
+          Open security operations checklist
+        </Link>
       </div>
 
       <div className="grid gap-3 md:grid-cols-4">

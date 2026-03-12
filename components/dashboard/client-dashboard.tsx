@@ -11,6 +11,8 @@ import {
   ArcElement
 } from "chart.js";
 import { Line, Doughnut } from "react-chartjs-2";
+import { LeaderboardPanel } from "@/components/challenges/leaderboard-panel";
+import { EncouragementBoard } from "@/components/community/encouragement-board";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, ArcElement);
 
@@ -96,6 +98,9 @@ export function ClientDashboard({
         <h2 className="mb-3 text-xl font-bold">Check-in Trend</h2>
         <Line data={checkinData} />
       </div>
+
+      <LeaderboardPanel />
+      <EncouragementBoard />
     </div>
   );
 }

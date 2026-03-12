@@ -50,7 +50,12 @@ const defaultRateLimitPolicies: Record<string, RateLimitPolicy> = {
   "admin.set_password": { limit: 12, windowSeconds: 10 * 60 },
   "exercises.import_csv": { limit: 8, windowSeconds: 60 * 60 },
   "programs.generate": { limit: 60, windowSeconds: 60 * 60 },
-  "contracts.send": { limit: 10, windowSeconds: 60 * 60 }
+  "contracts.send": { limit: 10, windowSeconds: 60 * 60 },
+  "challenges.create": { limit: 20, windowSeconds: 60 * 60 },
+  "challenges.bulk_enroll": { limit: 20, windowSeconds: 60 * 60 },
+  "community.posts.create": { limit: 30, windowSeconds: 60 * 60 },
+  "community.comments.create": { limit: 120, windowSeconds: 60 * 60 },
+  "community.reports.create": { limit: 40, windowSeconds: 60 * 60 }
 };
 
 const defaultLockoutPolicy: LockoutPolicy = {

@@ -36,7 +36,12 @@ const labels: Record<string, string> = {
   "admin.set_password": "Admin password resets",
   "exercises.import_csv": "Exercise CSV imports",
   "programs.generate": "Program generations",
-  "contracts.send": "Contract sends"
+  "contracts.send": "Contract sends",
+  "challenges.create": "Challenge creates",
+  "challenges.bulk_enroll": "Challenge bulk enroll",
+  "community.posts.create": "Community posts",
+  "community.comments.create": "Community comments",
+  "community.reports.create": "Community reports"
 };
 
 export function SecuritySettingsForm() {
