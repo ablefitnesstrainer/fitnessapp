@@ -33,6 +33,10 @@ export function TemplateBuilder({ exercises }: { exercises: Exercise[] }) {
   ]);
   const [status, setStatus] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [exerciseSearch, setExerciseSearch] = useState<Record<string, string>>({});
+
+  const getRowKey = (dayIndex: number, exIndex: number) => `${dayIndex}-${exIndex}`;
+  const exerciseById = new Map(exercises.map((exercise) => [exercise.id, exercise]));
 
   const setDaysCount = (count: number) => {
     setDaysPerWeek(count);
@@ -188,18 +192,55 @@ export function TemplateBuilder({ exercises }: { exercises: Exercise[] }) {
             <div key={`${day.day_number}-${exIndex}`} className="grid gap-2 md:grid-cols-4">
               <div>
                 <label className="label">Exercise</label>
+                <input
+                  className="input mb-2"
+                  placeholder="Search exercise..."
+                  value={exerciseSearch[getRowKey(dayIndex, exIndex)] ?? ""}
+                  onChange={(e) =>
+                    setExerciseSearch((prev) => ({
+                      ...prev,
+                      [getRowKey(dayIndex, exIndex)]: e.target.value
+                    }))
+                  }
+                />
                 <select
                   className="input"
                   value={exercise.exercise_id}
-                  onChange={(e) => updateExercise(dayIndex, exIndex, "exercise_id", e.target.value)}
+                  onChange={(e) => {
+                    const nextId = e.target.value;
+                    updateExercise(dayIndex, exIndex, "exercise_id", nextId);
+                    const selected = exerciseById.get(nextId);
+                    if (selected) {
+                      setExerciseSearch((prev) => ({
+                        ...prev,
+                        [getRowKey(dayIndex, exIndex)]: selected.name
+                      }));
+                    }
+                  }}
                 >
                   <option value="">Select exercise</option>
-                  {exercises.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.name}
-                    </option>
-                  ))}
+                  {(() => {
+                    const search = (exerciseSearch[getRowKey(dayIndex, exIndex)] || "").trim().toLowerCase();
+                    const selected = exerciseById.get(exercise.exercise_id);
+                    const filtered = exercises
+                      .filter((option) => {
+                        if (!search) return true;
+                        const haystack = `${option.name} ${option.primary_muscle || ""} ${option.equipment || ""}`.toLowerCase();
+                        return haystack.includes(search);
+                      })
+                      .slice(0, 100);
+
+                    const options = selected && !filtered.some((option) => option.id === selected.id) ? [selected, ...filtered] : filtered;
+                    return options.map((option) => (
+                      <option key={option.id} value={option.id}>
+                        {option.name}
+                        {option.primary_muscle ? ` • ${option.primary_muscle}` : ""}
+                        {option.equipment ? ` • ${option.equipment}` : ""}
+                      </option>
+                    ));
+                  })()}
                 </select>
+                <p className="mt-1 text-xs text-slate-500">Type to filter. Showing up to 100 matches.</p>
               </div>
               <div>
                 <label className="label">Sets</label>
