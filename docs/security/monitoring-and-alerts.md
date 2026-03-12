@@ -53,3 +53,13 @@ Detect authentication abuse, authorization issues, and suspicious activity early
   - opens/updates issue `Nightly security audit: vulnerabilities detected` when vulnerabilities exist
   - closes that issue automatically when audit is clean
 - This creates an always-visible security inbox item without relying on manual checks.
+
+## Real-time anomaly email alerts
+Sensitive admin/coach actions trigger anomaly checks (new IP or new device profile per actor history).
+
+Set these Vercel environment variables:
+- `RESEND_API_KEY`
+- `SECURITY_ALERT_EMAIL` (destination inbox)
+- `SECURITY_ALERT_FROM` (verified sender, e.g. `security@yourdomain.com`)
+
+When an anomaly is detected for a sensitive action, the app sends an immediate alert email and stores anomaly details in the audit log metadata.
