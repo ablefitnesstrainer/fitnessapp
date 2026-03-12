@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
+import { enforceRateLimit } from "@/lib/security-controls";
+import { validateUploadedBuffer } from "@/lib/file-security";
 
 async function authorizeClientAccess(supabase: ReturnType<typeof createClient>, requestedClientId?: string | null) {
   const {
@@ -53,6 +55,14 @@ export async function POST(request: Request) {
   const auth = await authorizeClientAccess(supabase, clientId || null);
   if ("error" in auth) return auth.error;
 
+  const limited = await enforceRateLimit({
+    scope: "clients.progress.upload",
+    identifier: auth.userId,
+    limit: 30,
+    windowSeconds: 60 * 60
+  });
+  if (limited) return limited;
+
   const ext = extensionForMime(file.type);
   if (!ext) return NextResponse.json({ error: "Only JPG, PNG, and WEBP are supported" }, { status: 400 });
 
@@ -61,6 +71,9 @@ export async function POST(request: Request) {
 
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
+  const validation = validateUploadedBuffer(file.type, buffer);
+  if (!validation.ok) return NextResponse.json({ error: validation.reason }, { status: 400 });
+
   const now = Date.now();
   const storagePath = `${auth.clientId}/${now}-${Math.random().toString(36).slice(2)}.${ext}`;
 

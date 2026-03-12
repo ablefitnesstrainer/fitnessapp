@@ -90,6 +90,15 @@ export async function POST(request: Request) {
   if (!body.message?.trim() && !body.attachment_url && !body.attachment_path) {
     return NextResponse.json({ error: "Message text or attachment is required" }, { status: 400 });
   }
+  if (body.message && body.message.length > 4000) {
+    return NextResponse.json({ error: "Message must be 4000 characters or less" }, { status: 400 });
+  }
+  if (body.attachment_path && !body.attachment_path.startsWith(`${user.id}/`)) {
+    return NextResponse.json({ error: "Invalid attachment path" }, { status: 400 });
+  }
+  if (body.attachment_size && Number(body.attachment_size) > 15 * 1024 * 1024) {
+    return NextResponse.json({ error: "Attachment exceeds allowed size" }, { status: 400 });
+  }
 
   const { data: message, error } = await supabase
     .from("messages")

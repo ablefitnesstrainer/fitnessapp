@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { enforceRateLimit } from "@/lib/security-controls";
+import { sanitizeFilename, validateUploadedBuffer } from "@/lib/file-security";
 
 function allowedMime(mime: string) {
   return ["image/jpeg", "image/png", "image/webp", "application/pdf", "text/plain"].includes(mime);
@@ -43,6 +44,10 @@ export async function POST(request: Request) {
 
   const bytes = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
+  const validation = validateUploadedBuffer(file.type, buffer);
+  if (!validation.ok) return NextResponse.json({ error: validation.reason }, { status: 400 });
+
+  const safeName = sanitizeFilename(file.name, `attachment.${ext}`);
   const storagePath = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
   const admin = createAdminClient();
@@ -62,7 +67,7 @@ export async function POST(request: Request) {
     attachment: {
       url: signedUrlData.signedUrl,
       path: storagePath,
-      name: file.name,
+      name: safeName,
       type: file.type,
       size: file.size
     }

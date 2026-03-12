@@ -47,6 +47,7 @@ const defaultRateLimitPolicies: Record<string, RateLimitPolicy> = {
   "auth.reauth": { limit: 20, windowSeconds: 10 * 60 },
   "messages.send": { limit: 120, windowSeconds: 60 },
   "messages.upload": { limit: 20, windowSeconds: 10 * 60 },
+  "clients.progress.upload": { limit: 30, windowSeconds: 60 * 60 },
   "admin.set_password": { limit: 12, windowSeconds: 10 * 60 },
   "exercises.import_csv": { limit: 8, windowSeconds: 60 * 60 },
   "programs.generate": { limit: 60, windowSeconds: 60 * 60 },

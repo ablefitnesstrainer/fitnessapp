@@ -33,6 +33,7 @@ const labels: Record<string, string> = {
   "auth.reauth": "Re-auth attempts",
   "messages.send": "Messages sent",
   "messages.upload": "Message attachment uploads",
+  "clients.progress.upload": "Progress photo uploads",
   "admin.set_password": "Admin password resets",
   "exercises.import_csv": "Exercise CSV imports",
   "programs.generate": "Program generations",
