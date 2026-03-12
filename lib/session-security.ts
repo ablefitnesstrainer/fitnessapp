@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 export const AUTH_AT_COOKIE = "af_last_auth_at";
 export const LAST_SEEN_AT_COOKIE = "af_last_seen_at";
+export const MFA_TRUSTED_UNTIL_COOKIE = "af_mfa_trusted_until";
 
 export function getIdleTimeoutMinutes() {
   const value = Number(process.env.SESSION_IDLE_TIMEOUT_MINUTES || 30);
@@ -12,6 +13,12 @@ export function getIdleTimeoutMinutes() {
 export function getSensitiveActionReauthMinutes() {
   const value = Number(process.env.SENSITIVE_ACTION_REAUTH_MINUTES || 15);
   if (!Number.isFinite(value) || value <= 0) return 15;
+  return Math.floor(value);
+}
+
+export function getMfaTrustDays() {
+  const value = Number(process.env.MFA_TRUST_DAYS || 14);
+  if (!Number.isFinite(value) || value <= 0) return 14;
   return Math.floor(value);
 }
 
@@ -96,6 +103,13 @@ export function clearSessionSecurityCookies(response: NextResponse) {
     path: "/",
     maxAge: 0
   });
+  response.cookies.set(MFA_TRUSTED_UNTIL_COOKIE, "", {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 0
+  });
 }
 
 export function requireRecentAuth(request: Request, reauthMinutes = getSensitiveActionReauthMinutes()) {
@@ -112,4 +126,3 @@ export function requireRecentAuth(request: Request, reauthMinutes = getSensitive
     { status: 401 }
   );
 }
-

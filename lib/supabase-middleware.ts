@@ -4,6 +4,7 @@ import { env } from "@/lib/env";
 import {
   AUTH_AT_COOKIE,
   LAST_SEEN_AT_COOKIE,
+  MFA_TRUSTED_UNTIL_COOKIE,
   clearSessionSecurityCookies,
   getIdleTimeoutMinutes,
   isSessionIdle,
@@ -13,6 +14,13 @@ import {
 const allowPublicSignup = process.env.NEXT_PUBLIC_ALLOW_PUBLIC_SIGNUP === "true";
 const isMissingRelation = (code?: string) => code === "42P01" || code === "PGRST205";
 const mutatingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function isMfaTrustValid(trustedUntil: string | null | undefined) {
+  if (!trustedUntil) return false;
+  const ts = new Date(trustedUntil).getTime();
+  if (!Number.isFinite(ts)) return false;
+  return ts > Date.now();
+}
 
 function withSecurityHeaders(request: NextRequest, response: NextResponse) {
   response.headers.set("X-Frame-Options", "DENY");
@@ -173,6 +181,8 @@ export async function updateSession(request: NextRequest) {
         const totpFactors = factorsData?.totp || [];
         const hasVerifiedFactor = totpFactors.some((factor) => factor.status === "verified");
         const currentLevel = aalData?.currentLevel;
+        const mfaTrustUntil = request.cookies.get(MFA_TRUSTED_UNTIL_COOKIE)?.value || null;
+        const trustedDevice = isMfaTrustValid(mfaTrustUntil);
 
         if (!hasVerifiedFactor && !isMfaPage) {
           const redirectUrl = request.nextUrl.clone();
@@ -182,7 +192,7 @@ export async function updateSession(request: NextRequest) {
           return withSecurityHeaders(request, NextResponse.redirect(redirectUrl));
         }
 
-        if (hasVerifiedFactor && currentLevel !== "aal2" && !isMfaPage) {
+        if (hasVerifiedFactor && currentLevel !== "aal2" && !isMfaPage && !trustedDevice) {
           const redirectUrl = request.nextUrl.clone();
           redirectUrl.pathname = "/settings/mfa";
           redirectUrl.searchParams.set("required", "verify");

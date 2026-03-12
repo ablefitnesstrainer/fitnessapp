@@ -140,7 +140,8 @@ export function MfaSettingsForm() {
     setPendingFactorId(null);
     setEnrollQrCode(null);
     setEnrollSecret(null);
-    setStatus("MFA verified successfully.");
+    await fetch("/api/auth/mfa/trust", { method: "POST" });
+    setStatus("MFA verified successfully. This device is now trusted.");
     await loadMfaState();
     setSaving(false);
 
@@ -258,4 +259,3 @@ export function MfaSettingsForm() {
     </section>
   );
 }
-
