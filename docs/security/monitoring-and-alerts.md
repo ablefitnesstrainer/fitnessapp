@@ -46,3 +46,10 @@ Detect authentication abuse, authorization issues, and suspicious activity early
 - Weekly: review security dashboard trends.
 - Monthly: review alert thresholds and reduce noise.
 - Quarterly: run key rotation + backup restore checklist.
+
+## Automated audit signal
+- GitHub Actions runs `.github/workflows/nightly-security-audit.yml` daily.
+- Behavior:
+  - opens/updates issue `Nightly security audit: vulnerabilities detected` when vulnerabilities exist
+  - closes that issue automatically when audit is clean
+- This creates an always-visible security inbox item without relying on manual checks.
