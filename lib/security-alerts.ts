@@ -11,10 +11,15 @@ type SecurityAlertPayload = {
   occurredAtIso: string;
 };
 
-export async function sendSecurityAnomalyEmail(payload: SecurityAlertPayload) {
+type SecurityAlertEmailConfig = {
+  recipientEmail?: string | null;
+  fromEmail?: string | null;
+};
+
+export async function sendSecurityAnomalyEmail(payload: SecurityAlertPayload, config?: SecurityAlertEmailConfig) {
   const apiKey = process.env.RESEND_API_KEY;
-  const toEmail = process.env.SECURITY_ALERT_EMAIL;
-  const fromEmail = process.env.SECURITY_ALERT_FROM || "onboarding@resend.dev";
+  const toEmail = config?.recipientEmail || process.env.SECURITY_ALERT_EMAIL;
+  const fromEmail = config?.fromEmail || process.env.SECURITY_ALERT_FROM || "onboarding@resend.dev";
 
   if (!apiKey || !toEmail) return;
 

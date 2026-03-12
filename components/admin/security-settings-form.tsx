@@ -13,9 +13,19 @@ type LockoutPolicy = {
   maxSeconds: number;
 };
 
+type AlertPolicy = {
+  enabled: boolean;
+  recipientEmail: string | null;
+  fromEmail: string | null;
+  notifyOnNewIp: boolean;
+  notifyOnNewDevice: boolean;
+  minimumReasons: number;
+};
+
 type Payload = {
   rateLimits: Record<string, RateLimitPolicy>;
   lockoutPolicy: LockoutPolicy;
+  alertPolicy: AlertPolicy;
 };
 
 function isPayload(value: unknown): value is Payload {
@@ -23,7 +33,8 @@ function isPayload(value: unknown): value is Payload {
     Boolean(value) &&
     typeof value === "object" &&
     "rateLimits" in (value as Record<string, unknown>) &&
-    "lockoutPolicy" in (value as Record<string, unknown>)
+    "lockoutPolicy" in (value as Record<string, unknown>) &&
+    "alertPolicy" in (value as Record<string, unknown>)
   );
 }
 
@@ -92,6 +103,17 @@ export function SecuritySettingsForm() {
       lockoutPolicy: {
         ...settings.lockoutPolicy,
         [key]: Number.isFinite(value) ? value : 1
+      }
+    });
+  }
+
+  function updateAlert<K extends keyof AlertPolicy>(key: K, value: AlertPolicy[K]) {
+    if (!settings) return;
+    setSettings({
+      ...settings,
+      alertPolicy: {
+        ...settings.alertPolicy,
+        [key]: value
       }
     });
   }
@@ -204,6 +226,69 @@ export function SecuritySettingsForm() {
             onChange={(e) => updateLockout("maxSeconds", Number(e.target.value))}
           />
         </div>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold">Anomaly Email Alerts</h2>
+        <p className="text-sm text-slate-600">Email alerts for sensitive actions from new IP/device patterns.</p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+          <input
+            type="checkbox"
+            checked={settings.alertPolicy.enabled}
+            onChange={(e) => updateAlert("enabled", e.target.checked)}
+          />
+          Enable anomaly email alerts
+        </label>
+        <div>
+          <label className="label">Minimum anomaly reasons to alert</label>
+          <input
+            className="input"
+            type="number"
+            min={1}
+            max={2}
+            value={settings.alertPolicy.minimumReasons}
+            onChange={(e) => updateAlert("minimumReasons", Math.max(1, Number(e.target.value) || 1))}
+          />
+        </div>
+        <div>
+          <label className="label">Alert Recipient Email</label>
+          <input
+            className="input"
+            type="email"
+            value={settings.alertPolicy.recipientEmail || ""}
+            onChange={(e) => updateAlert("recipientEmail", e.target.value || null)}
+            placeholder="alerts@yourdomain.com"
+          />
+        </div>
+        <div>
+          <label className="label">Alert From Email</label>
+          <input
+            className="input"
+            type="email"
+            value={settings.alertPolicy.fromEmail || ""}
+            onChange={(e) => updateAlert("fromEmail", e.target.value || null)}
+            placeholder="security@yourdomain.com"
+          />
+        </div>
+        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+          <input
+            type="checkbox"
+            checked={settings.alertPolicy.notifyOnNewIp}
+            onChange={(e) => updateAlert("notifyOnNewIp", e.target.checked)}
+          />
+          Alert on new IP
+        </label>
+        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+          <input
+            type="checkbox"
+            checked={settings.alertPolicy.notifyOnNewDevice}
+            onChange={(e) => updateAlert("notifyOnNewDevice", e.target.checked)}
+          />
+          Alert on new device profile
+        </label>
       </div>
 
       {status && <p className="text-sm text-slate-700">{status}</p>}

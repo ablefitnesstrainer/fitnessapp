@@ -36,6 +36,15 @@ type LockoutPolicy = {
   maxSeconds: number;
 };
 
+export type SecurityAlertPolicy = {
+  enabled: boolean;
+  recipientEmail: string | null;
+  fromEmail: string | null;
+  notifyOnNewIp: boolean;
+  notifyOnNewDevice: boolean;
+  minimumReasons: number;
+};
+
 const memoryRateLimits = new Map<string, { startedAtMs: number; hits: number }>();
 const settingsCacheTtlMs = 60_000;
 let cachedSettings: Map<string, Record<string, unknown>> | null = null;
@@ -65,6 +74,15 @@ const defaultLockoutPolicy: LockoutPolicy = {
   maxSeconds: 3600
 };
 
+const defaultAlertPolicy: SecurityAlertPolicy = {
+  enabled: true,
+  recipientEmail: process.env.SECURITY_ALERT_EMAIL || null,
+  fromEmail: process.env.SECURITY_ALERT_FROM || null,
+  notifyOnNewIp: true,
+  notifyOnNewDevice: true,
+  minimumReasons: 1
+};
+
 function nowMs() {
   return Date.now();
 }
@@ -78,6 +96,15 @@ function parsePositiveInt(value: unknown, fallback: number) {
   if (!Number.isFinite(parsed)) return fallback;
   if (parsed <= 0) return fallback;
   return Math.floor(parsed);
+}
+
+function parseBoolean(value: unknown, fallback: boolean) {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    if (value.toLowerCase() === "true") return true;
+    if (value.toLowerCase() === "false") return false;
+  }
+  return fallback;
 }
 
 async function loadSettingsSnapshot(forceRefresh = false) {
@@ -149,7 +176,42 @@ export async function getSecuritySettingsForAdmin() {
     maxSeconds: parsePositiveInt(rawLockout?.max_seconds, defaultLockoutPolicy.maxSeconds)
   };
 
-  return { rateLimits, lockoutPolicy };
+  const rawAlerts = settings.get("alerts:security_anomaly");
+  const alertPolicy: SecurityAlertPolicy = {
+    enabled: parseBoolean(rawAlerts?.enabled, defaultAlertPolicy.enabled),
+    recipientEmail:
+      typeof rawAlerts?.recipient_email === "string" && rawAlerts.recipient_email.trim()
+        ? rawAlerts.recipient_email.trim()
+        : defaultAlertPolicy.recipientEmail,
+    fromEmail:
+      typeof rawAlerts?.from_email === "string" && rawAlerts.from_email.trim()
+        ? rawAlerts.from_email.trim()
+        : defaultAlertPolicy.fromEmail,
+    notifyOnNewIp: parseBoolean(rawAlerts?.notify_on_new_ip, defaultAlertPolicy.notifyOnNewIp),
+    notifyOnNewDevice: parseBoolean(rawAlerts?.notify_on_new_device, defaultAlertPolicy.notifyOnNewDevice),
+    minimumReasons: parsePositiveInt(rawAlerts?.minimum_reasons, defaultAlertPolicy.minimumReasons)
+  };
+
+  return { rateLimits, lockoutPolicy, alertPolicy };
+}
+
+export async function getSecurityAlertPolicy(): Promise<SecurityAlertPolicy> {
+  const settings = await loadSettingsSnapshot();
+  const rawAlerts = settings.get("alerts:security_anomaly");
+  return {
+    enabled: parseBoolean(rawAlerts?.enabled, defaultAlertPolicy.enabled),
+    recipientEmail:
+      typeof rawAlerts?.recipient_email === "string" && rawAlerts.recipient_email.trim()
+        ? rawAlerts.recipient_email.trim()
+        : defaultAlertPolicy.recipientEmail,
+    fromEmail:
+      typeof rawAlerts?.from_email === "string" && rawAlerts.from_email.trim()
+        ? rawAlerts.from_email.trim()
+        : defaultAlertPolicy.fromEmail,
+    notifyOnNewIp: parseBoolean(rawAlerts?.notify_on_new_ip, defaultAlertPolicy.notifyOnNewIp),
+    notifyOnNewDevice: parseBoolean(rawAlerts?.notify_on_new_device, defaultAlertPolicy.notifyOnNewDevice),
+    minimumReasons: parsePositiveInt(rawAlerts?.minimum_reasons, defaultAlertPolicy.minimumReasons)
+  };
 }
 
 export async function refreshSecuritySettingsCache() {

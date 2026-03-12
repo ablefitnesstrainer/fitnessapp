@@ -36,6 +36,14 @@ export async function PUT(request: Request) {
   const body = (await request.json()) as {
     rateLimits?: Record<string, { limit: number; windowSeconds: number }>;
     lockoutPolicy?: { threshold: number; baseSeconds: number; maxSeconds: number };
+    alertPolicy?: {
+      enabled: boolean;
+      recipientEmail: string | null;
+      fromEmail: string | null;
+      notifyOnNewIp: boolean;
+      notifyOnNewDevice: boolean;
+      minimumReasons: number;
+    };
   };
 
   const upserts: { key: string; value: Record<string, unknown>; updated_by: string; updated_at: string }[] = [];
@@ -62,6 +70,22 @@ export async function PUT(request: Request) {
         threshold: Math.max(1, Math.floor(body.lockoutPolicy.threshold)),
         base_seconds: Math.max(1, Math.floor(body.lockoutPolicy.baseSeconds)),
         max_seconds: Math.max(1, Math.floor(body.lockoutPolicy.maxSeconds))
+      },
+      updated_by: auth.userId,
+      updated_at: nowIso
+    });
+  }
+
+  if (body.alertPolicy) {
+    upserts.push({
+      key: "alerts:security_anomaly",
+      value: {
+        enabled: Boolean(body.alertPolicy.enabled),
+        recipient_email: body.alertPolicy.recipientEmail?.trim() || null,
+        from_email: body.alertPolicy.fromEmail?.trim() || null,
+        notify_on_new_ip: Boolean(body.alertPolicy.notifyOnNewIp),
+        notify_on_new_device: Boolean(body.alertPolicy.notifyOnNewDevice),
+        minimum_reasons: Math.max(1, Math.floor(body.alertPolicy.minimumReasons || 1))
       },
       updated_by: auth.userId,
       updated_at: nowIso

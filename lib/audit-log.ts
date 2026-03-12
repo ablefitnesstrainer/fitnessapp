@@ -1,6 +1,7 @@
 import type { createClient } from "@/lib/supabase-server";
 import { detectSecurityAnomaly, isSensitiveSecurityAction, sensitiveSecurityActions, securityDeviceFingerprint } from "@/lib/security-anomaly";
 import { sendSecurityAnomalyEmail } from "@/lib/security-alerts";
+import { getSecurityAlertPolicy } from "@/lib/security-controls";
 
 type SupabaseServerClient = ReturnType<typeof createClient>;
 
@@ -35,15 +36,43 @@ export async function writeAuditLog(params: {
         params.supabase.from("app_users").select("full_name,email").eq("id", params.actorId).maybeSingle()
       ]);
 
-      const anomaly = detectSecurityAnomaly({
+      const rawAnomaly = detectSecurityAnomaly({
         history: (priorRows || []) as Array<{ ip_address: string | null; user_agent: string | null }>,
         currentIp: ipAddress,
         currentUserAgent: userAgent
       });
-      anomalyReasons = anomaly.reasons;
-      deviceFingerprint = anomaly.deviceFingerprint || deviceFingerprint;
+      deviceFingerprint = rawAnomaly.deviceFingerprint || deviceFingerprint;
       actorName = (actorRow as { full_name?: string | null } | null)?.full_name || null;
       actorEmail = (actorRow as { email?: string | null } | null)?.email || null;
+
+      const alertPolicy = await getSecurityAlertPolicy();
+      const filteredReasons = rawAnomaly.reasons.filter((reason) => {
+        if (reason === "new IP") return alertPolicy.notifyOnNewIp;
+        if (reason === "new device profile") return alertPolicy.notifyOnNewDevice;
+        return true;
+      });
+      anomalyReasons = filteredReasons;
+
+      if (alertPolicy.enabled && filteredReasons.length >= Math.max(1, alertPolicy.minimumReasons || 1)) {
+        await sendSecurityAnomalyEmail(
+          {
+            action: params.action,
+            actorId: params.actorId,
+            actorName,
+            actorEmail,
+            entityType: params.entityType,
+            entityId: params.entityId || null,
+            ipAddress,
+            deviceFingerprint,
+            reasons: filteredReasons,
+            occurredAtIso: new Date().toISOString()
+          },
+          {
+            recipientEmail: alertPolicy.recipientEmail,
+            fromEmail: alertPolicy.fromEmail
+          }
+        );
+      }
     }
 
     const metadata = {
@@ -65,20 +94,6 @@ export async function writeAuditLog(params: {
       user_agent: userAgent
     });
 
-    if (anomalyReasons.length > 0) {
-      await sendSecurityAnomalyEmail({
-        action: params.action,
-        actorId: params.actorId,
-        actorName,
-        actorEmail,
-        entityType: params.entityType,
-        entityId: params.entityId || null,
-        ipAddress,
-        deviceFingerprint,
-        reasons: anomalyReasons,
-        occurredAtIso: new Date().toISOString()
-      });
-    }
   } catch {
     // Do not block primary request on audit-log write failures.
   }
