@@ -44,6 +44,7 @@ let cachedSettingsAtMs = 0;
 const defaultRateLimitPolicies: Record<string, RateLimitPolicy> = {
   "auth.login.ip": { limit: 50, windowSeconds: 10 * 60 },
   "auth.login.email": { limit: 20, windowSeconds: 10 * 60 },
+  "auth.reauth": { limit: 20, windowSeconds: 10 * 60 },
   "messages.send": { limit: 120, windowSeconds: 60 },
   "messages.upload": { limit: 20, windowSeconds: 10 * 60 },
   "admin.set_password": { limit: 12, windowSeconds: 10 * 60 },

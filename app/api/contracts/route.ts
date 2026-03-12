@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase-server";
 import { createDocumentFromTemplate, deriveContractStatus, getDocumentRecipients, sendDocument } from "@/lib/breezedoc";
 import { enforceRateLimit } from "@/lib/security-controls";
 import { writeAuditLog } from "@/lib/audit-log";
+import { requireRecentAuth } from "@/lib/session-security";
 
 type AppUser = {
   id: string;
@@ -121,6 +122,9 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const reauth = requireRecentAuth(request);
+  if (reauth) return reauth;
+
   const body = (await request.json()) as { client_id: string };
   const auth = await authorize(request, body.client_id);
   if ("error" in auth) return auth.error;

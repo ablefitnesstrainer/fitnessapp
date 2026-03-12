@@ -30,6 +30,7 @@ function isPayload(value: unknown): value is Payload {
 const labels: Record<string, string> = {
   "auth.login.ip": "Login attempts per IP",
   "auth.login.email": "Login attempts per email",
+  "auth.reauth": "Re-auth attempts",
   "messages.send": "Messages sent",
   "messages.upload": "Message attachment uploads",
   "admin.set_password": "Admin password resets",

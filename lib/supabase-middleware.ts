@@ -1,6 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { env } from "@/lib/env";
+import {
+  AUTH_AT_COOKIE,
+  LAST_SEEN_AT_COOKIE,
+  clearSessionSecurityCookies,
+  getIdleTimeoutMinutes,
+  isSessionIdle,
+  touchLastSeenCookie
+} from "@/lib/session-security";
 
 const allowPublicSignup = process.env.NEXT_PUBLIC_ALLOW_PUBLIC_SIGNUP === "true";
 const isMissingRelation = (code?: string) => code === "42P01" || code === "PGRST205";
@@ -129,10 +137,33 @@ export async function updateSession(request: NextRequest) {
   const isPageRequest = !pathname.startsWith("/api") && !isPublicAuthPath;
   if (user && isPageRequest) {
     const { data: appUser } = await supabase.from("app_users").select("id,role").eq("id", user.id).maybeSingle();
+    touchLastSeenCookie(supabaseResponse);
 
     const isMfaPage = pathname.startsWith("/settings/mfa");
 
     if (appUser?.role === "admin" || appUser?.role === "coach") {
+      const lastSeenAt = request.cookies.get(LAST_SEEN_AT_COOKIE)?.value || null;
+      const idleTimeoutMinutes = getIdleTimeoutMinutes();
+      if (isSessionIdle(lastSeenAt, idleTimeoutMinutes)) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = "/login";
+        redirectUrl.searchParams.set("reason", "session_timeout");
+        const timeoutResponse = NextResponse.redirect(redirectUrl);
+        clearSessionSecurityCookies(timeoutResponse);
+        for (const cookie of request.cookies.getAll()) {
+          if (cookie.name.startsWith("sb-")) {
+            timeoutResponse.cookies.set(cookie.name, "", {
+              maxAge: 0,
+              path: "/",
+              httpOnly: true,
+              sameSite: "lax",
+              secure: process.env.NODE_ENV === "production"
+            });
+          }
+        }
+        return withSecurityHeaders(request, timeoutResponse);
+      }
+
       try {
         const [{ data: factorsData }, { data: aalData }] = await Promise.all([
           supabase.auth.mfa.listFactors(),
@@ -177,6 +208,18 @@ export async function updateSession(request: NextRequest) {
         }
       }
     }
+  }
+
+  if (user) {
+    if (!request.cookies.get(AUTH_AT_COOKIE)?.value) {
+      supabaseResponse.cookies.set(AUTH_AT_COOKIE, new Date().toISOString(), {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/"
+      });
+    }
+    touchLastSeenCookie(supabaseResponse);
   }
 
   return withSecurityHeaders(request, supabaseResponse);

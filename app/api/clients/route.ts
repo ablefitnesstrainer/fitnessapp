@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { writeAuditLog } from "@/lib/audit-log";
+import { requireRecentAuth } from "@/lib/session-security";
 
 export async function PATCH(request: Request) {
   const supabase = createClient();
@@ -48,6 +49,9 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const reauth = requireRecentAuth(request);
+  if (reauth) return reauth;
+
   const supabase = createClient();
   const {
     data: { user }

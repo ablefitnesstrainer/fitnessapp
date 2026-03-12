@@ -11,6 +11,7 @@ import {
 } from "@/lib/security-controls";
 import { createClient } from "@/lib/supabase-server";
 import { writeAuditLog } from "@/lib/audit-log";
+import { applySessionSecurityCookies } from "@/lib/session-security";
 
 type LoginBody = {
   email: string;
@@ -80,6 +81,7 @@ export async function POST(request: NextRequest) {
   }
 
   await clearFailedLoginAttempts(email);
+  applySessionSecurityCookies(response);
 
   try {
     const appSupabase = createClient();

@@ -3,8 +3,12 @@ import { createClient } from "@/lib/supabase-server";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { writeAuditLog } from "@/lib/audit-log";
 import { enforceRateLimit } from "@/lib/security-controls";
+import { requireRecentAuth } from "@/lib/session-security";
 
 export async function POST(request: Request) {
+  const reauth = requireRecentAuth(request);
+  if (reauth) return reauth;
+
   const supabase = createClient();
   const {
     data: { user }
