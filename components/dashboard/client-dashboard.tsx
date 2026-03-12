@@ -19,16 +19,46 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip,
 type WorkoutLog = { completed_at: string | null; total_volume: number | null };
 type MealLog = { created_at: string; calories: number; protein: number; carbs: number; fat: number };
 type Checkin = { created_at: string; energy?: number; sleep?: number; stress?: number; adherence: number };
+type UpcomingChallenge = {
+  id: string;
+  name: string;
+  description: string | null;
+  starts_on: string;
+  ends_on: string;
+  status: "draft" | "active" | "closed";
+};
 
 export function ClientDashboard({
   workoutLogs,
   mealLogs,
-  checkins
+  checkins,
+  upcomingChallenge,
+  welcomeVideo
 }: {
   workoutLogs: WorkoutLog[];
   mealLogs: MealLog[];
   checkins: Checkin[];
+  upcomingChallenge?: UpcomingChallenge | null;
+  welcomeVideo?: { url?: string; title?: string } | null;
 }) {
+  const toYouTubeEmbed = (url: string | undefined) => {
+    if (!url) return null;
+    try {
+      const parsed = new URL(url);
+      if (parsed.hostname.includes("youtu.be")) return `https://www.youtube.com/embed/${parsed.pathname.replace("/", "")}`;
+      if (parsed.hostname.includes("youtube.com") && parsed.pathname === "/watch") {
+        const id = parsed.searchParams.get("v");
+        return id ? `https://www.youtube.com/embed/${id}` : null;
+      }
+      if (parsed.hostname.includes("youtube.com") && parsed.pathname.startsWith("/embed/")) return url;
+      return null;
+    } catch {
+      return null;
+    }
+  };
+
+  const welcomeEmbed = toYouTubeEmbed(welcomeVideo?.url);
+
   const workoutData = {
     labels: workoutLogs.map((w) => (w.completed_at ? new Date(w.completed_at).toLocaleDateString() : "pending")),
     datasets: [
@@ -66,6 +96,40 @@ export function ClientDashboard({
 
   return (
     <div className="space-y-6">
+      {upcomingChallenge && (
+        <div className="card border-blue-200 bg-blue-50">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Next Month Challenge</p>
+          <h2 className="mt-1 text-xl font-bold text-blue-900">{upcomingChallenge.name}</h2>
+          <p className="mt-1 text-sm text-blue-800">
+            Starts {new Date(`${upcomingChallenge.starts_on}T00:00:00`).toLocaleDateString()} • Ends{" "}
+            {new Date(`${upcomingChallenge.ends_on}T00:00:00`).toLocaleDateString()}
+          </p>
+          {upcomingChallenge.description && <p className="mt-2 text-sm text-blue-900">{upcomingChallenge.description}</p>}
+          <a href="/challenges" className="mt-3 inline-flex rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white">
+            View Challenge Details
+          </a>
+        </div>
+      )}
+
+      {welcomeVideo?.url && (
+        <div className="card space-y-2">
+          <h2 className="text-xl font-bold">{welcomeVideo.title || "Welcome Video"}</h2>
+          {welcomeEmbed ? (
+            <iframe
+              title={welcomeVideo.title || "Welcome video"}
+              src={welcomeEmbed}
+              className="h-72 w-full rounded-xl border border-slate-200"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <a href={welcomeVideo.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700 hover:text-blue-800">
+              Watch welcome video
+            </a>
+          )}
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-3">
         <div className="card">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Workouts Logged</p>

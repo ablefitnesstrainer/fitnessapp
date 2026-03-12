@@ -8,6 +8,9 @@ type DayExercise = {
   sets: number;
   reps: number;
   warmup_sets: number[];
+  block_type?: "standard" | "circuit";
+  circuit_label?: string;
+  circuit_rounds?: number | null;
 };
 
 type DayPlan = {
@@ -28,7 +31,17 @@ export function TemplateBuilder({ exercises }: { exercises: Exercise[] }) {
   const [days, setDays] = useState<DayPlan[]>([
     {
       day_number: 1,
-      exercises: [{ exercise_id: "", sets: 3, reps: 10, warmup_sets: [10, 8] }]
+      exercises: [
+        {
+          exercise_id: "",
+          sets: 3,
+          reps: 10,
+          warmup_sets: [10, 8],
+          block_type: "standard",
+          circuit_label: "",
+          circuit_rounds: 3
+        }
+      ]
     }
   ]);
   const [status, setStatus] = useState<string | null>(null);
@@ -45,7 +58,17 @@ export function TemplateBuilder({ exercises }: { exercises: Exercise[] }) {
       while (existing.length < count) {
         existing.push({
           day_number: existing.length + 1,
-          exercises: [{ exercise_id: "", sets: 3, reps: 10, warmup_sets: [10, 8] }]
+          exercises: [
+            {
+              exercise_id: "",
+              sets: 3,
+              reps: 10,
+              warmup_sets: [10, 8],
+              block_type: "standard",
+              circuit_label: "",
+              circuit_rounds: 3
+            }
+          ]
         });
       }
       return existing.slice(0, count).map((day, idx) => ({ ...day, day_number: idx + 1 }));
@@ -55,7 +78,15 @@ export function TemplateBuilder({ exercises }: { exercises: Exercise[] }) {
   const addExercise = (dayIndex: number) => {
     setDays((prev) => {
       const copy = [...prev];
-      copy[dayIndex].exercises.push({ exercise_id: "", sets: 3, reps: 10, warmup_sets: [10, 8] });
+      copy[dayIndex].exercises.push({
+        exercise_id: "",
+        sets: 3,
+        reps: 10,
+        warmup_sets: [10, 8],
+        block_type: "standard",
+        circuit_label: "",
+        circuit_rounds: 3
+      });
       return copy;
     });
   };
@@ -71,6 +102,8 @@ export function TemplateBuilder({ exercises }: { exercises: Exercise[] }) {
           .filter((v) => !Number.isNaN(v));
       } else if (field === "sets" || field === "reps") {
         target[field] = Number(value);
+      } else if (field === "circuit_rounds") {
+        target.circuit_rounds = value ? Number(value) : null;
       } else {
         target[field] = value as never;
       }
@@ -189,7 +222,7 @@ export function TemplateBuilder({ exercises }: { exercises: Exercise[] }) {
         <section key={day.day_number} className="card space-y-3">
           <h3 className="text-lg font-semibold">Day {day.day_number}</h3>
           {day.exercises.map((exercise, exIndex) => (
-            <div key={`${day.day_number}-${exIndex}`} className="grid gap-2 md:grid-cols-4">
+            <div key={`${day.day_number}-${exIndex}`} className="grid gap-2 md:grid-cols-6">
               <div>
                 <label className="label">Exercise</label>
                 <input
@@ -254,6 +287,17 @@ export function TemplateBuilder({ exercises }: { exercises: Exercise[] }) {
                 />
               </div>
               <div>
+                <label className="label">Structure</label>
+                <select
+                  className="input"
+                  value={exercise.block_type || "standard"}
+                  onChange={(e) => updateExercise(dayIndex, exIndex, "block_type", e.target.value)}
+                >
+                  <option value="standard">Standard</option>
+                  <option value="circuit">Circuit</option>
+                </select>
+              </div>
+              <div>
                 <label className="label">Reps</label>
                 <input
                   className="input"
@@ -273,6 +317,31 @@ export function TemplateBuilder({ exercises }: { exercises: Exercise[] }) {
                   onChange={(e) => updateExercise(dayIndex, exIndex, "warmup_sets", e.target.value)}
                 />
               </div>
+              {exercise.block_type === "circuit" && (
+                <>
+                  <div>
+                    <label className="label">Circuit label</label>
+                    <input
+                      className="input"
+                      placeholder="e.g. Circuit A"
+                      value={exercise.circuit_label || ""}
+                      onChange={(e) => updateExercise(dayIndex, exIndex, "circuit_label", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Circuit rounds</label>
+                    <input
+                      className="input"
+                      type="number"
+                      min={1}
+                      max={12}
+                      placeholder="3"
+                      value={exercise.circuit_rounds ?? 3}
+                      onChange={(e) => updateExercise(dayIndex, exIndex, "circuit_rounds", e.target.value)}
+                    />
+                  </div>
+                </>
+              )}
             </div>
           ))}
 

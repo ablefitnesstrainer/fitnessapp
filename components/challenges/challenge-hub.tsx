@@ -50,16 +50,22 @@ export function ChallengeHub({
   role,
   initialChallenges,
   clients = [],
-  templates = []
+  templates = [],
+  initialWelcomeVideoUrl = "",
+  initialWelcomeVideoTitle = "Welcome to Able Fitness"
 }: {
   role: Role;
   initialChallenges: Challenge[];
   clients?: ClientOption[];
   templates?: TemplateOption[];
+  initialWelcomeVideoUrl?: string;
+  initialWelcomeVideoTitle?: string;
 }) {
   const [challenges, setChallenges] = useState(initialChallenges || []);
   const [status, setStatus] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [welcomeVideoUrl, setWelcomeVideoUrl] = useState(initialWelcomeVideoUrl);
+  const [welcomeVideoTitle, setWelcomeVideoTitle] = useState(initialWelcomeVideoTitle);
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -194,6 +200,27 @@ export function ChallengeHub({
     setPending(false);
   }
 
+  async function saveWelcomeVideo() {
+    setPending(true);
+    setStatus(null);
+    const res = await fetch("/api/content-settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        welcome_video_url: welcomeVideoUrl,
+        welcome_video_title: welcomeVideoTitle
+      })
+    });
+    const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+    if (!res.ok) {
+      setStatus(payload?.error || "Failed to save welcome video settings.");
+      setPending(false);
+      return;
+    }
+    setStatus("Welcome video settings saved.");
+    setPending(false);
+  }
+
   async function joinChallenge(challengeId: string) {
     setPending(true);
     setStatus(null);
@@ -283,6 +310,34 @@ export function ChallengeHub({
 
             <button className="btn-primary" type="button" disabled={pending} onClick={() => void createChallenge()}>
               {pending ? "Saving..." : "Step 3: Create Challenge"}
+            </button>
+          </div>
+
+          <div className="card space-y-3">
+            <h2 className="text-xl font-bold">Client Welcome Video</h2>
+            <p className="text-sm text-slate-600">Shown on the client dashboard.</p>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label>
+                <span className="label">Video title</span>
+                <input
+                  className="input"
+                  value={welcomeVideoTitle}
+                  onChange={(e) => setWelcomeVideoTitle(e.target.value)}
+                  placeholder="Welcome to Able Fitness"
+                />
+              </label>
+              <label>
+                <span className="label">Video URL (YouTube recommended)</span>
+                <input
+                  className="input"
+                  value={welcomeVideoUrl}
+                  onChange={(e) => setWelcomeVideoUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                />
+              </label>
+            </div>
+            <button className="btn-secondary" type="button" disabled={pending} onClick={() => void saveWelcomeVideo()}>
+              Save Welcome Video
             </button>
           </div>
 

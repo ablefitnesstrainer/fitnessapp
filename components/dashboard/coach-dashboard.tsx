@@ -18,7 +18,8 @@ export function CoachDashboard({
   activityFeed,
   contractQueue,
   priorityQueue,
-  overdueCheckins
+  overdueCheckins,
+  upcomingChallenge
 }: {
   clients: number;
   templates: number;
@@ -74,6 +75,14 @@ export function CoachDashboard({
     clientName: string;
     daysSinceCheckin: number | null;
   }[];
+  upcomingChallenge?: {
+    id: string;
+    name: string;
+    description: string | null;
+    starts_on: string;
+    ends_on: string;
+    status: "draft" | "active" | "closed";
+  } | null;
 }) {
   const chartData = {
     labels: checkins.map((c) => new Date(c.created_at).toLocaleDateString()),
@@ -174,6 +183,22 @@ export function CoachDashboard({
 
   return (
     <div className="space-y-6">
+      {upcomingChallenge && (
+        <div className="card border-blue-200 bg-blue-50">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Next Month Challenge Preview</p>
+          <h2 className="mt-1 text-xl font-bold text-blue-900">{upcomingChallenge.name}</h2>
+          <p className="mt-1 text-sm text-blue-800">
+            Starts {new Date(`${upcomingChallenge.starts_on}T00:00:00`).toLocaleDateString()} • Ends{" "}
+            {new Date(`${upcomingChallenge.ends_on}T00:00:00`).toLocaleDateString()}
+          </p>
+          {upcomingChallenge.description && <p className="mt-2 text-sm text-blue-900">{upcomingChallenge.description}</p>}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Link href="/challenges" className="btn-primary">
+              Open Challenge Hub
+            </Link>
+          </div>
+        </div>
+      )}
       <div className="card bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-700 text-white">
         <div className="mb-3 flex items-center justify-between gap-2">
           <h2 className="text-lg font-bold">Weekly Coach Digest</h2>

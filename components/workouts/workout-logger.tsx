@@ -12,6 +12,9 @@ type WorkoutExercise = {
   sets: number;
   reps: number;
   warmup_sets: number[];
+  block_type?: "standard" | "circuit";
+  circuit_label?: string | null;
+  circuit_rounds?: number | null;
 };
 
 type ExerciseOption = {
@@ -569,19 +572,50 @@ export function WorkoutLogger({
         </div>
       </div>
 
-      {activeExercises.map((exercise) => {
+      {activeExercises.map((exercise, exerciseIndex) => {
         const state = setsByExercise[exercise.program_exercise_id];
         const youtubeEmbed = toYouTubeEmbed(exercise.video_url);
         const openVideo = openVideoFor[exercise.program_exercise_id] || false;
+        const previous = exerciseIndex > 0 ? activeExercises[exerciseIndex - 1] : null;
+        const next = exerciseIndex < activeExercises.length - 1 ? activeExercises[exerciseIndex + 1] : null;
+        const inCircuit = exercise.block_type === "circuit";
+        const circuitLabel = exercise.circuit_label?.trim() || "Circuit";
+        const startsCircuit =
+          inCircuit &&
+          (!previous ||
+            previous.block_type !== "circuit" ||
+            (previous.circuit_label?.trim() || "Circuit") !== circuitLabel ||
+            previous.circuit_rounds !== exercise.circuit_rounds);
+        const endsCircuit =
+          inCircuit &&
+          (!next ||
+            next.block_type !== "circuit" ||
+            (next.circuit_label?.trim() || "Circuit") !== circuitLabel ||
+            next.circuit_rounds !== exercise.circuit_rounds);
 
         return (
-          <article key={exercise.program_exercise_id} className="card space-y-4">
+          <div key={exercise.program_exercise_id} className="space-y-2">
+            {startsCircuit && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2">
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Circuit Block</p>
+                <p className="text-sm font-semibold text-blue-900">
+                  {circuitLabel} • {Math.max(1, Number(exercise.circuit_rounds || 3))} rounds
+                </p>
+                <p className="text-xs text-blue-700">Complete all listed exercises in order, then repeat the block.</p>
+              </div>
+            )}
+          <article className="card space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h3 className="text-lg font-semibold">{exercise.name}</h3>
                 <p className="text-sm text-slate-600">
                   {exercise.primary_muscle || "General"} • {exercise.equipment || "Equipment varies"}
                 </p>
+                {inCircuit && (
+                  <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">
+                    {circuitLabel} • Round-based exercise
+                  </p>
+                )}
               </div>
               <div className="flex gap-2">
                 {exercise.video_url && (
@@ -734,6 +768,12 @@ export function WorkoutLogger({
               </button>
             </div>
           </article>
+            {endsCircuit && (
+              <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-medium text-emerald-800">
+                End of {circuitLabel}. Continue to next section.
+              </div>
+            )}
+          </div>
         );
       })}
 

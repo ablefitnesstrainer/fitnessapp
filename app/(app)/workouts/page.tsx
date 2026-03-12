@@ -64,7 +64,7 @@ export default async function WorkoutsPage() {
 
   const { data: dayExercises } = await supabase
     .from("program_exercises")
-    .select("id,exercise_id,sets,reps,warmup_sets,exercises(name,primary_muscle,equipment,video_url)")
+    .select("id,exercise_id,sets,reps,warmup_sets,block_type,circuit_label,circuit_rounds,exercises(name,primary_muscle,equipment,video_url)")
     .eq("day_id", day.id)
     .order("order_index");
 
@@ -140,7 +140,10 @@ export default async function WorkoutsPage() {
       : (entry.exercises as { equipment?: string | null })?.equipment || null,
     video_url: Array.isArray(entry.exercises)
       ? entry.exercises[0]?.video_url || null
-      : (entry.exercises as { video_url?: string | null })?.video_url || null
+      : (entry.exercises as { video_url?: string | null })?.video_url || null,
+    block_type: ((entry as { block_type?: string | null }).block_type === "circuit" ? "circuit" : "standard") as "standard" | "circuit",
+    circuit_label: (entry as { circuit_label?: string | null }).circuit_label || null,
+    circuit_rounds: (entry as { circuit_rounds?: number | null }).circuit_rounds || null
   }));
 
   const todayIso = new Date().toISOString().slice(0, 10);

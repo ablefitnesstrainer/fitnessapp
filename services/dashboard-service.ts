@@ -1,15 +1,49 @@
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { displayNameFromIdentity } from "@/lib/display-name";
 import { getCurrentAppUser, getCurrentClientProfile } from "@/services/auth-service";
 
 export async function getDashboardData() {
   const supabase = createClient();
   const appUser = await getCurrentAppUser();
+  const now = new Date();
+  const nextMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  const nextMonthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 0));
+  const nextMonthStartIso = nextMonthStart.toISOString().slice(0, 10);
+  const nextMonthEndIso = nextMonthEnd.toISOString().slice(0, 10);
+
+  const [{ data: upcomingChallenge }, welcomeVideo] = await Promise.all([
+    supabase
+      .from("challenges")
+      .select("id,name,description,starts_on,ends_on,status")
+      .in("status", ["draft", "active"])
+      .gte("starts_on", nextMonthStartIso)
+      .lte("starts_on", nextMonthEndIso)
+      .order("starts_on", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    (async () => {
+      try {
+        const admin = createAdminClient();
+        const { data } = await admin
+          .from("security_settings")
+          .select("key,value")
+          .in("key", ["content:client_welcome_video_url", "content:client_welcome_video_title"]);
+        const byKey = new Map((data || []).map((row) => [row.key, row.value as Record<string, unknown>]));
+        return {
+          url: String(byKey.get("content:client_welcome_video_url")?.value || "").trim(),
+          title: String(byKey.get("content:client_welcome_video_title")?.value || "Welcome to Able Fitness").trim()
+        };
+      } catch {
+        return { url: "", title: "Welcome to Able Fitness" };
+      }
+    })()
+  ]);
 
   if (appUser.role === "client") {
     const client = await getCurrentClientProfile();
     if (!client) {
-      return { workoutLogs: [], mealLogs: [], checkins: [] };
+      return { workoutLogs: [], mealLogs: [], checkins: [], upcomingChallenge: null, welcomeVideo };
     }
 
     const [workoutLogsRes, mealLogsRes, checkinsRes] = await Promise.all([
@@ -25,7 +59,9 @@ export async function getDashboardData() {
     return {
       workoutLogs: workoutLogsRes.data,
       mealLogs: mealLogsRes.data,
-      checkins: checkinsRes.data
+      checkins: checkinsRes.data,
+      upcomingChallenge: upcomingChallenge || null,
+      welcomeVideo
     };
   }
 
@@ -122,14 +158,14 @@ export async function getDashboardData() {
     }
   }
 
-  const now = Date.now();
+  const nowMs = Date.now();
   const dayMs = 1000 * 60 * 60 * 24;
   const overdueCheckins = roster
     .map((client) => {
       const identity = userById.get(client.user_id);
       if (!identity || identity.role !== "client") return null;
       const latest = (checkinsByClientId.get(client.id) || [])[0];
-      const daysSinceCheckin = latest ? Math.floor((now - new Date(latest.created_at).getTime()) / dayMs) : null;
+      const daysSinceCheckin = latest ? Math.floor((nowMs - new Date(latest.created_at).getTime()) / dayMs) : null;
       if (daysSinceCheckin === null || daysSinceCheckin >= 7) {
         return {
           clientId: client.id,
@@ -162,9 +198,9 @@ export async function getDashboardData() {
       const previousAdherence = previousCheckin ? previousCheckin.nutrition_adherence_percent ?? previousCheckin.adherence ?? null : null;
       const adherenceDelta = latestAdherence !== null && previousAdherence !== null ? latestAdherence - previousAdherence : null;
 
-      const daysSinceCheckin = latestCheckin ? Math.floor((now - new Date(latestCheckin.created_at).getTime()) / dayMs) : null;
+      const daysSinceCheckin = latestCheckin ? Math.floor((nowMs - new Date(latestCheckin.created_at).getTime()) / dayMs) : null;
       const lastWorkoutAt = latestWorkoutByClientId.get(client.id) ?? null;
-      const daysSinceWorkout = lastWorkoutAt ? Math.floor((now - new Date(lastWorkoutAt).getTime()) / dayMs) : null;
+      const daysSinceWorkout = lastWorkoutAt ? Math.floor((nowMs - new Date(lastWorkoutAt).getTime()) / dayMs) : null;
       const hasProgram = activeAssignmentByClientId.has(client.id);
 
       let score = 0;
@@ -369,6 +405,8 @@ export async function getDashboardData() {
     activityFeed,
     contractQueue,
     priorityQueue,
-    overdueCheckins
+    overdueCheckins,
+    upcomingChallenge: upcomingChallenge || null,
+    welcomeVideo
   };
 }

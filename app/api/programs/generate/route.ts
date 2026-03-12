@@ -82,7 +82,7 @@ export async function POST(request: Request) {
   const baseDayIds = baseDays.map((d) => d.id);
   const { data: baseExercises, error: baseExercisesError } = await supabase
     .from("program_exercises")
-    .select("day_id,exercise_id,sets,reps,warmup_sets,order_index")
+    .select("day_id,exercise_id,sets,reps,warmup_sets,order_index,block_type,circuit_label,circuit_rounds")
     .in("day_id", baseDayIds)
     .order("order_index");
 
@@ -131,6 +131,9 @@ export async function POST(request: Request) {
           sets: target.sets,
           reps: target.reps,
           warmup_sets: exercise.warmup_sets,
+          block_type: exercise.block_type || "standard",
+          circuit_label: exercise.circuit_label || null,
+          circuit_rounds: exercise.circuit_rounds || null,
           order_index: exercise.order_index
         };
       });

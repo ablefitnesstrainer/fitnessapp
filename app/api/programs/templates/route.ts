@@ -15,6 +15,9 @@ type Payload = {
       sets: number;
       reps: number;
       warmup_sets: number[];
+      block_type?: "standard" | "circuit";
+      circuit_label?: string;
+      circuit_rounds?: number | null;
     }[];
   }[];
 };
@@ -81,6 +84,9 @@ export async function POST(request: Request) {
           sets: exercise.sets,
           reps: exercise.reps,
           warmup_sets: exercise.warmup_sets,
+          block_type: exercise.block_type === "circuit" ? "circuit" : "standard",
+          circuit_label: exercise.block_type === "circuit" ? (exercise.circuit_label?.trim() || "Circuit") : null,
+          circuit_rounds: exercise.block_type === "circuit" ? Math.max(1, Number(exercise.circuit_rounds || 3)) : null,
           order_index: idx
         }))
       );

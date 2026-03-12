@@ -1,5 +1,6 @@
 import { ChallengeHub } from "@/components/challenges/challenge-hub";
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { displayNameFromIdentity } from "@/lib/display-name";
 import { getCurrentAppUser } from "@/services/auth-service";
 
@@ -26,6 +27,7 @@ export default async function ChallengesPage() {
     appUser.role === "admin" || appUser.role === "coach"
       ? await fetchTemplates(supabase, appUser.id, appUser.role)
       : [];
+  const contentSettings = appUser.role === "admin" || appUser.role === "coach" ? await fetchContentSettings() : { url: "", title: "Welcome to Able Fitness" };
 
   return (
     <ChallengeHub
@@ -33,6 +35,8 @@ export default async function ChallengesPage() {
       initialChallenges={challengesData || []}
       clients={clients}
       templates={templates}
+      initialWelcomeVideoUrl={contentSettings.url}
+      initialWelcomeVideoTitle={contentSettings.title}
     />
   );
 }
@@ -135,4 +139,21 @@ async function fetchTemplates(supabase: ReturnType<typeof createClient>, userId:
   const { data, error } = await query;
   if (error) return [];
   return (data || []).map((template) => ({ id: template.id, name: template.name }));
+}
+
+async function fetchContentSettings() {
+  try {
+    const admin = createAdminClient();
+    const { data } = await admin
+      .from("security_settings")
+      .select("key,value")
+      .in("key", ["content:client_welcome_video_url", "content:client_welcome_video_title"]);
+    const byKey = new Map((data || []).map((item) => [item.key, item.value as Record<string, unknown>]));
+    return {
+      url: String(byKey.get("content:client_welcome_video_url")?.value || ""),
+      title: String(byKey.get("content:client_welcome_video_title")?.value || "Welcome to Able Fitness")
+    };
+  } catch {
+    return { url: "", title: "Welcome to Able Fitness" };
+  }
 }
