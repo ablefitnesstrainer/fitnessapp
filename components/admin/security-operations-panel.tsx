@@ -154,7 +154,13 @@ export function SecurityOperationsPanel() {
 
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
         <p className="font-semibold text-slate-900">Runbook</p>
-        <p className="mt-1">Follow `/docs/security/key-rotation-runbook.md` each quarter to rotate keys and verify backup restore.</p>
+        <p className="mt-1">Quarterly operations docs:</p>
+        <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-slate-700">
+          <li>`/docs/security/key-rotation-runbook.md`</li>
+          <li>`/docs/security/backup-restore-checklist.md`</li>
+          <li>`/docs/security/monitoring-and-alerts.md`</li>
+        </ul>
+        <p className="mt-2 text-xs text-slate-600">Set a recurring 90-day calendar reminder and complete this checklist on each cycle.</p>
       </div>
     </section>
   );
