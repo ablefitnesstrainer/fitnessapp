@@ -36,6 +36,97 @@ type LoginLockoutRow = {
   updated_at: string;
 };
 
+type SecurityAnomaly = {
+  log: AuditLogRow;
+  reasons: string[];
+};
+
+const sensitiveActions = new Set([
+  "admin.reset_password",
+  "client.delete",
+  "clients.assign_template",
+  "challenge.bulk_enroll",
+  "security.settings_update",
+  "security.operations_update",
+  "contracts.send"
+]);
+
+function uaFingerprint(ua: string | null) {
+  if (!ua) return "unknown";
+  const value = ua.toLowerCase();
+
+  const browser = value.includes("edg/")
+    ? "edge"
+    : value.includes("chrome/")
+      ? "chrome"
+      : value.includes("safari/") && !value.includes("chrome/")
+        ? "safari"
+        : value.includes("firefox/")
+          ? "firefox"
+          : "other";
+
+  const os = value.includes("windows")
+    ? "windows"
+    : value.includes("mac os") || value.includes("macintosh")
+      ? "macos"
+      : value.includes("iphone") || value.includes("ipad") || value.includes("ios")
+        ? "ios"
+        : value.includes("android")
+          ? "android"
+          : value.includes("linux")
+            ? "linux"
+            : "other";
+
+  return `${browser}:${os}`;
+}
+
+function buildSecurityAnomalies(logs: AuditLogRow[]) {
+  const actorSeen = new Map<
+    string,
+    {
+      ips: Set<string>;
+      devices: Set<string>;
+      hasHistory: boolean;
+    }
+  >();
+
+  const anomalies: SecurityAnomaly[] = [];
+  const chronological = [...logs].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+  for (const log of chronological) {
+    if (!sensitiveActions.has(log.action)) continue;
+
+    const actorId = log.actor_id;
+    const state = actorSeen.get(actorId) || {
+      ips: new Set<string>(),
+      devices: new Set<string>(),
+      hasHistory: false
+    };
+
+    const ip = log.ip_address || "unknown";
+    const device = uaFingerprint(log.user_agent);
+    const reasons: string[] = [];
+
+    if (state.hasHistory && !state.ips.has(ip)) {
+      reasons.push("new IP");
+    }
+    if (state.hasHistory && !state.devices.has(device)) {
+      reasons.push("new device profile");
+    }
+
+    if (reasons.length > 0) {
+      anomalies.push({ log, reasons });
+    }
+
+    state.ips.add(ip);
+    state.devices.add(device);
+    state.hasHistory = true;
+    actorSeen.set(actorId, state);
+  }
+
+  return anomalies.sort((a, b) => new Date(b.log.created_at).getTime() - new Date(a.log.created_at).getTime());
+}
+
 function formatActorName(actor: ActorRow | undefined) {
   if (!actor) return "Unknown";
   const name = actor.full_name?.trim();
@@ -125,6 +216,8 @@ export default async function AdminSecurityPage({ searchParams }: { searchParams
   }
 
   const logs = (logsData ?? []) as AuditLogRow[];
+  const anomalies = buildSecurityAnomalies(logs);
+  const anomalies24hCount = anomalies.filter((entry) => new Date(entry.log.created_at).getTime() >= Date.now() - 24 * 60 * 60 * 1000).length;
   const actorIds = [...new Set(logs.map((log) => log.actor_id).filter(Boolean))];
   let actorsById = new Map<string, ActorRow>();
 
@@ -170,6 +263,53 @@ export default async function AdminSecurityPage({ searchParams }: { searchParams
           <p className="mt-1 text-2xl font-bold text-slate-900">{unusualAdminChangesCount || 0}</p>
           <p className="text-xs text-slate-500">Resets, deletes, and assignments combined.</p>
         </div>
+        <div className="card md:col-span-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Anomaly alerts (24h)</p>
+          <p className="mt-1 text-2xl font-bold text-slate-900">{anomalies24hCount}</p>
+          <p className="text-xs text-slate-500">Sensitive actions from a new IP or device profile.</p>
+        </div>
+      </div>
+
+      <div className="card overflow-x-auto p-0">
+        <table className="min-w-full text-sm">
+          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+            <tr>
+              <th className="px-4 py-3">Time</th>
+              <th className="px-4 py-3">Actor</th>
+              <th className="px-4 py-3">Action</th>
+              <th className="px-4 py-3">Reason</th>
+              <th className="px-4 py-3">IP</th>
+              <th className="px-4 py-3">Device</th>
+            </tr>
+          </thead>
+          <tbody>
+            {anomalies.length === 0 && (
+              <tr>
+                <td className="px-4 py-6 text-slate-500" colSpan={6}>
+                  No anomaly alerts detected in the loaded log window.
+                </td>
+              </tr>
+            )}
+            {anomalies.map((entry) => {
+              const actor = actorsById.get(entry.log.actor_id);
+              return (
+                <tr key={`anomaly-${entry.log.id}`} className="border-t border-slate-100 align-top">
+                  <td className="px-4 py-3 text-slate-700">{new Date(entry.log.created_at).toLocaleString()}</td>
+                  <td className="px-4 py-3">
+                    <p className="font-semibold text-slate-900">{formatActorName(actor)}</p>
+                    <p className="text-xs text-slate-500">{actor?.email ?? entry.log.actor_id}</p>
+                  </td>
+                  <td className="px-4 py-3 font-semibold text-slate-900">{entry.log.action}</td>
+                  <td className="px-4 py-3 text-xs">
+                    <span className="rounded-full bg-amber-100 px-2 py-1 font-semibold text-amber-800">{entry.reasons.join(", ")}</span>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-600">{entry.log.ip_address || "-"}</td>
+                  <td className="px-4 py-3 text-xs text-slate-600">{uaFingerprint(entry.log.user_agent)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       <div className="card overflow-x-auto p-0">
@@ -264,12 +404,13 @@ export default async function AdminSecurityPage({ searchParams }: { searchParams
               <th className="px-4 py-3">Entity</th>
               <th className="px-4 py-3">Details</th>
               <th className="px-4 py-3">IP</th>
+              <th className="px-4 py-3">Device</th>
             </tr>
           </thead>
           <tbody>
             {logs.length === 0 && (
               <tr>
-                <td className="px-4 py-6 text-slate-500" colSpan={6}>
+                <td className="px-4 py-6 text-slate-500" colSpan={7}>
                   No matching security activity.
                 </td>
               </tr>
@@ -294,6 +435,7 @@ export default async function AdminSecurityPage({ searchParams }: { searchParams
                     <pre className="max-w-[420px] overflow-x-auto whitespace-pre-wrap rounded-lg bg-slate-50 p-2">{metadataPreview}</pre>
                   </td>
                   <td className="px-4 py-3 text-xs text-slate-600">{log.ip_address || "-"}</td>
+                  <td className="px-4 py-3 text-xs text-slate-600">{uaFingerprint(log.user_agent)}</td>
                 </tr>
               );
             })}
