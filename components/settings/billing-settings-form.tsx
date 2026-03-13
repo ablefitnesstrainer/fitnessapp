@@ -67,14 +67,15 @@ export function BillingSettingsForm({ initialState }: { initialState: BillingSta
     window.location.href = payload.url;
   };
 
-  if (state.role === "client") {
-    return <p className="text-sm text-slate-600">Billing is managed by your coach or admin.</p>;
-  }
-
   return (
     <div className="space-y-4">
       <div className="card space-y-3">
         <h2 className="text-lg font-semibold">Stripe Subscription</h2>
+        {state.role === "client" && (
+          <p className="text-sm text-slate-600">
+            You can manage or cancel your membership directly in Stripe Billing Portal.
+          </p>
+        )}
         <div className="grid gap-3 md:grid-cols-2">
           <div>
             <p className="label">Status</p>
@@ -103,11 +104,13 @@ export function BillingSettingsForm({ initialState }: { initialState: BillingSta
         )}
 
         <div className="flex flex-wrap gap-2">
-          <button className="btn-primary" type="button" onClick={startCheckout} disabled={loading !== null || !state.stripe_configured}>
-            {loading === "checkout" ? "Opening..." : active ? "Change Plan" : "Start Subscription"}
-          </button>
+          {state.role !== "client" && (
+            <button className="btn-primary" type="button" onClick={startCheckout} disabled={loading !== null || !state.stripe_configured}>
+              {loading === "checkout" ? "Opening..." : active ? "Change Plan" : "Start Subscription"}
+            </button>
+          )}
           <button className="btn-secondary" type="button" onClick={openPortal} disabled={loading !== null || !state.stripe_configured}>
-            {loading === "portal" ? "Opening..." : "Manage Billing"}
+            {loading === "portal" ? "Opening..." : state.role === "client" ? "Manage or Cancel Subscription" : "Manage Billing"}
           </button>
           <button className="btn-secondary" type="button" onClick={refresh} disabled={loading !== null}>
             {loading === "refresh" ? "Refreshing..." : "Refresh Status"}

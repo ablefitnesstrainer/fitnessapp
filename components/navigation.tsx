@@ -127,7 +127,6 @@ const links: NavLink[] = [
   {
     href: "/settings/billing",
     label: "Billing",
-    roles: ["admin", "coach"],
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
         <path d="M3 7h18v10H3V7zm0 3h18M7 14h3" stroke="currentColor" strokeWidth="1.7" />

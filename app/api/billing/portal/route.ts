@@ -28,7 +28,6 @@ export async function POST(request: Request) {
     .single();
 
   if (error || !appUser) return NextResponse.json({ error: error?.message || "User not found" }, { status: 400 });
-  if (appUser.role === "client") return NextResponse.json({ error: "Billing is managed by your coach." }, { status: 403 });
   if (!appUser.stripe_customer_id) return NextResponse.json({ error: "No Stripe customer found. Start subscription first." }, { status: 400 });
 
   const stripe = getStripeClient();

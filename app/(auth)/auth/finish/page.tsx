@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 import type { EmailOtpType } from "@supabase/supabase-js";
 
@@ -20,18 +20,18 @@ function parseHashTokens(hash: string) {
 
 export default function AuthFinishPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [status, setStatus] = useState("Completing sign-in...");
-  const nextPath = useMemo(() => cleanNextPath(searchParams.get("next")), [searchParams]);
 
   useEffect(() => {
     let cancelled = false;
 
     async function finishAuth() {
       const supabase = createClient();
-      const code = searchParams.get("code");
-      const tokenHash = searchParams.get("token_hash");
-      const type = searchParams.get("type");
+      const currentUrl = new URL(window.location.href);
+      const code = currentUrl.searchParams.get("code");
+      const tokenHash = currentUrl.searchParams.get("token_hash");
+      const type = currentUrl.searchParams.get("type");
+      const nextPath = cleanNextPath(currentUrl.searchParams.get("next"));
       const { accessToken, refreshToken } = parseHashTokens(window.location.hash);
 
       try {
@@ -74,7 +74,7 @@ export default function AuthFinishPage() {
     return () => {
       cancelled = true;
     };
-  }, [nextPath, router, searchParams]);
+  }, [router]);
 
   return (
     <section className="card mx-auto mt-8 max-w-md">
