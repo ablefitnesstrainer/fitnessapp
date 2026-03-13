@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { authorizeChallengeAccess } from "../../_auth";
 import { writeAuditLog } from "@/lib/audit-log";
+import { recordLegalAcceptance } from "@/lib/legal-acceptance";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const auth = await authorizeChallengeAccess();
@@ -41,6 +42,21 @@ export async function POST(request: Request, { params }: { params: { id: string 
     entityId: params.id,
     metadata: { client_id: clientId }
   });
+
+  try {
+    await recordLegalAcceptance({
+      supabase,
+      actorUserId: userId,
+      appUserId: userId,
+      clientId,
+      documentType: "challenge_participation",
+      documentVersion: "v1-2026-03-12",
+      source: "challenge_join",
+      metadata: { challenge_id: params.id }
+    });
+  } catch {
+    // Do not block enrollment flow when acceptance tracking is unavailable.
+  }
 
   return NextResponse.json({ ok: true });
 }

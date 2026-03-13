@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { calculateMifflinStJeorTargets } from "@/lib/macro-calculator";
+import { recordLegalAcceptance } from "@/lib/legal-acceptance";
 
 const isMissingSchemaField = (code?: string) => code === "42703" || code === "PGRST204";
 
@@ -120,6 +121,41 @@ export async function POST(request: Request) {
   );
 
   if (targetError) return NextResponse.json({ error: targetError.message }, { status: 400 });
+
+  try {
+    await Promise.all([
+      recordLegalAcceptance({
+        supabase,
+        actorUserId: user.id,
+        appUserId: user.id,
+        clientId: body.client_id,
+        documentType: "liability_ack",
+        documentVersion: intakePayload.liability_ack_version || "v1-2026-03-10",
+        source: "intake_submit",
+        metadata: { acknowledged: true }
+      }),
+      recordLegalAcceptance({
+        supabase,
+        actorUserId: user.id,
+        appUserId: user.id,
+        clientId: body.client_id,
+        documentType: "privacy_policy",
+        documentVersion: "v1-2026-03-12",
+        source: "intake_submit"
+      }),
+      recordLegalAcceptance({
+        supabase,
+        actorUserId: user.id,
+        appUserId: user.id,
+        clientId: body.client_id,
+        documentType: "terms_of_service",
+        documentVersion: "v1-2026-03-12",
+        source: "intake_submit"
+      })
+    ]);
+  } catch {
+    // Keep intake path non-blocking if legal acceptance table is unavailable.
+  }
 
   return NextResponse.json({ intake });
 }

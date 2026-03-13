@@ -118,6 +118,15 @@ const links: NavLink[] = [
     )
   },
   {
+    href: "/support",
+    label: "Support",
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+        <path d="M12 3a9 9 0 00-9 9c0 1.9.6 3.6 1.7 5L4 21l4.2-.7A9 9 0 1012 3zm-1 7h2v2h-2v-2zm0 4h2v2h-2v-2z" stroke="currentColor" strokeWidth="1.7" />
+      </svg>
+    )
+  },
+  {
     href: "/settings/password",
     label: "Security",
     icon: (
@@ -188,6 +197,26 @@ const links: NavLink[] = [
     )
   },
   {
+    href: "/admin/billing",
+    label: "Billing Timeline",
+    roles: ["admin"],
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+        <path d="M3 7h18v10H3V7zm0 3h18M7 14h3m6-8v12" stroke="currentColor" strokeWidth="1.7" />
+      </svg>
+    )
+  },
+  {
+    href: "/admin/ops-health",
+    label: "Ops Health",
+    roles: ["admin"],
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+        <path d="M3 12h4l2-5 4 10 2-5h6" stroke="currentColor" strokeWidth="1.7" />
+      </svg>
+    )
+  },
+  {
     href: "/community/moderation",
     label: "Moderation",
     roles: ["admin", "coach"],
@@ -210,8 +239,8 @@ export function Navigation({ role, unreadMessages = 0 }: { role: Role; unreadMes
   const visibleLinks = links.filter((link) => !link.roles || link.roles.includes(role));
 
   return (
-    <aside className="sticky top-0 hidden h-screen w-72 shrink-0 overflow-y-auto border-r border-slate-200/80 bg-white/85 p-5 backdrop-blur lg:block">
-      <div className="flex min-h-full flex-col">
+    <aside className="sticky top-0 hidden h-screen w-72 shrink-0 border-r border-slate-200/80 bg-white/85 p-5 backdrop-blur lg:block">
+      <div className="flex h-full flex-col">
         <div className="mb-6 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 p-4 text-white shadow-lg shadow-blue-200">
           <div className="flex items-center gap-3">
             <BrandLogo size={42} className="border border-white/30" />
@@ -223,7 +252,7 @@ export function Navigation({ role, unreadMessages = 0 }: { role: Role; unreadMes
           <p className="mt-1 text-sm text-blue-50">{subtitle}</p>
         </div>
 
-        <nav className="flex-1 space-y-1.5 pb-4 pr-1">
+        <nav className="flex-1 space-y-1.5 overflow-y-auto pb-4 pr-1">
           {visibleLinks.map((link) => {
             const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
             return (

@@ -44,6 +44,14 @@ export async function PUT(request: Request) {
       notifyOnNewDevice: boolean;
       minimumReasons: number;
     };
+    opsAlertPolicy?: {
+      enabled: boolean;
+      recipientEmail: string | null;
+      fromEmail: string | null;
+      dedupeWindowMinutes: number;
+      quietHoursStart: number;
+      quietHoursEnd: number;
+    };
   };
 
   const upserts: { key: string; value: Record<string, unknown>; updated_by: string; updated_at: string }[] = [];
@@ -86,6 +94,22 @@ export async function PUT(request: Request) {
         notify_on_new_ip: Boolean(body.alertPolicy.notifyOnNewIp),
         notify_on_new_device: Boolean(body.alertPolicy.notifyOnNewDevice),
         minimum_reasons: Math.max(1, Math.floor(body.alertPolicy.minimumReasons || 1))
+      },
+      updated_by: auth.userId,
+      updated_at: nowIso
+    });
+  }
+
+  if (body.opsAlertPolicy) {
+    upserts.push({
+      key: "alerts:ops_runtime",
+      value: {
+        enabled: Boolean(body.opsAlertPolicy.enabled),
+        recipient_email: body.opsAlertPolicy.recipientEmail?.trim() || null,
+        from_email: body.opsAlertPolicy.fromEmail?.trim() || null,
+        dedupe_window_minutes: Math.max(1, Math.floor(body.opsAlertPolicy.dedupeWindowMinutes || 60)),
+        quiet_hours_start: Math.max(0, Math.min(23, Math.floor(body.opsAlertPolicy.quietHoursStart || 0))),
+        quiet_hours_end: Math.max(0, Math.min(23, Math.floor(body.opsAlertPolicy.quietHoursEnd || 0)))
       },
       updated_by: auth.userId,
       updated_at: nowIso

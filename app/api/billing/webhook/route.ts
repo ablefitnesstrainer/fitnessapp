@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 import { createAdminClient } from "@/lib/supabase-admin";
 import { getStripeClient, getStripeWebhookSecret } from "@/lib/stripe";
 import { logClubEvent, provisionClubMembership } from "@/lib/club-provisioning";
+import { reportOpsAlert } from "@/lib/ops-alerts";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,13 @@ function appUserIdFromMetadata(metadata?: Stripe.Metadata | null) {
 function currentPeriodEnd(subscription: Stripe.Subscription | Stripe.Response<Stripe.Subscription>) {
   const raw = (subscription as { current_period_end?: unknown }).current_period_end;
   return typeof raw === "number" ? raw : null;
+}
+
+function invoiceSubscriptionId(invoice: Stripe.Invoice) {
+  const parent = invoice.parent;
+  if (!parent || parent.type !== "subscription_details") return null;
+  const subscription = parent.subscription_details?.subscription;
+  return typeof subscription === "string" ? subscription : null;
 }
 
 async function upsertWebhookEvent(input: {
@@ -81,6 +89,21 @@ async function markSubscriptionCanceled(subscription: Stripe.Subscription) {
       billing_updated_at: new Date().toISOString()
     })
     .eq("stripe_customer_id", String(subscription.customer || ""));
+}
+
+async function syncSubscriptionById(subscriptionId: string) {
+  const stripe = getStripeClient();
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+  const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
+  if (!customerId) return;
+  await syncSubscription({
+    customerId,
+    subscriptionId: subscription.id,
+    status: subscription.status,
+    priceId: subscription.items.data[0]?.price?.id || null,
+    currentPeriodEnd: currentPeriodEnd(subscription),
+    appUserId: appUserIdFromMetadata(subscription.metadata)
+  });
 }
 
 async function handleCheckoutSessionCompleted(event: Stripe.Event) {
@@ -152,6 +175,21 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event) {
     },
     lastError: provisioned.welcomeEmailError
   });
+
+  if (provisioned.welcomeEmailStatus === "failed") {
+    await reportOpsAlert({
+      alertKey: `club:welcome-email-failed:${customerId}`,
+      severity: "warning",
+      message: "Club provisioning completed but welcome email failed.",
+      metadata: {
+        event_id: event.id,
+        customer_id: customerId,
+        subscription_id: subscriptionId,
+        app_user_id: provisioned.appUserId,
+        email_error: provisioned.welcomeEmailError
+      }
+    });
+  }
 }
 
 export async function POST(request: Request) {
@@ -198,10 +236,41 @@ export async function POST(request: Request) {
       await markSubscriptionCanceled(subscription);
     }
 
+    if (event.type === "invoice.payment_failed" || event.type === "invoice.payment_succeeded") {
+      const invoice = event.data.object as Stripe.Invoice;
+      const subscriptionId = invoiceSubscriptionId(invoice);
+      if (subscriptionId) {
+        await syncSubscriptionById(subscriptionId);
+      }
+    }
+
+    if (event.type === "charge.refunded") {
+      const charge = event.data.object as Stripe.Charge & { invoice?: string | null };
+      const invoiceId = typeof charge.invoice === "string" ? charge.invoice : null;
+      if (invoiceId) {
+        const stripe = getStripeClient();
+        const invoice = await stripe.invoices.retrieve(invoiceId);
+        const subscriptionId = invoiceSubscriptionId(invoice);
+        if (subscriptionId) {
+          await syncSubscriptionById(subscriptionId);
+        }
+      }
+    }
+
     await upsertWebhookEvent({ eventId: event.id, eventType: event.type, status: "processed" });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Webhook handler failed";
     await upsertWebhookEvent({ eventId: event.id, eventType: event.type, status: "failed", errorMessage: message });
+    await reportOpsAlert({
+      alertKey: `stripe:webhook-failed:${event.type}`,
+      severity: "critical",
+      message: "Stripe webhook processing failed.",
+      metadata: {
+        event_id: event.id,
+        event_type: event.type,
+        error: message
+      }
+    });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 

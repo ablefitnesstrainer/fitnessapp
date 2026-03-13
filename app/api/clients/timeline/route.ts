@@ -36,13 +36,19 @@ export async function GET(request: Request) {
   const auth = await authorizeClientAccess(supabase, searchParams.get("client_id"));
   if ("error" in auth) return auth.error;
 
-  const [workoutsRes, checkinsRes, mealsRes, weightsRes, photosRes, notesRes] = await Promise.all([
+  const [workoutsRes, checkinsRes, mealsRes, weightsRes, photosRes, notesRes, legalRes] = await Promise.all([
     supabase.from("workout_logs").select("id,completed_at,total_volume").eq("client_id", auth.clientId).order("completed_at", { ascending: false }).limit(20),
     supabase.from("checkins").select("id,created_at,adherence,overall_week_rating").eq("client_id", auth.clientId).order("created_at", { ascending: false }).limit(20),
     supabase.from("meal_logs").select("id,created_at,food_name,calories").eq("client_id", auth.clientId).order("created_at", { ascending: false }).limit(20),
     supabase.from("bodyweight_logs").select("id,created_at,weight").eq("client_id", auth.clientId).order("created_at", { ascending: false }).limit(20),
     supabase.from("progress_photos").select("id,created_at,caption,taken_at").eq("client_id", auth.clientId).order("created_at", { ascending: false }).limit(20),
-    supabase.from("coach_notes").select("id,created_at,note").eq("client_id", auth.clientId).order("created_at", { ascending: false }).limit(20)
+    supabase.from("coach_notes").select("id,created_at,note").eq("client_id", auth.clientId).order("created_at", { ascending: false }).limit(20),
+    supabase
+      .from("legal_acceptances")
+      .select("id,created_at,document_type,document_version,source")
+      .eq("client_id", auth.clientId)
+      .order("created_at", { ascending: false })
+      .limit(20)
   ]);
 
   const err =
@@ -51,7 +57,8 @@ export async function GET(request: Request) {
     mealsRes.error ||
     weightsRes.error ||
     photosRes.error ||
-    notesRes.error;
+    notesRes.error ||
+    legalRes.error;
   if (err) return NextResponse.json({ error: err.message }, { status: 400 });
 
   const events: Array<{ id: string; type: string; at: string; title: string; detail?: string }> = [];
@@ -109,6 +116,15 @@ export async function GET(request: Request) {
       at: n.created_at,
       title: "Coach note added",
       detail: n.note
+    });
+  }
+  for (const l of legalRes.data || []) {
+    events.push({
+      id: `legal-${l.id}`,
+      type: "legal",
+      at: l.created_at,
+      title: `Legal acceptance: ${l.document_type}`,
+      detail: `${l.document_version}${l.source ? ` • ${l.source}` : ""}`
     });
   }
 

@@ -1,12 +1,11 @@
 name: Security CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   schedule:
     - cron: '0 9 * * 1' # Weekly Monday 09:00 UTC
+  workflow_dispatch:
 
 jobs:
   security-gates:

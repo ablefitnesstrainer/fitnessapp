@@ -28,6 +28,7 @@ Detect authentication abuse, authorization issues, and suspicious activity early
 2. Top endpoints by 401/403/429
 3. Sensitive admin actions by actor and time
 4. Contract webhook signature failures
+5. Club provisioning failures (welcome email / assignment warnings)
 
 ## Alert severity and response
 1. P1 (Immediate)
@@ -50,7 +51,7 @@ Detect authentication abuse, authorization issues, and suspicious activity early
 ## Automated audit signal
 - GitHub Actions runs `.github/workflows/nightly-security-audit.yml` daily.
 - Behavior:
-  - opens/updates issue `Nightly security audit: vulnerabilities detected` when vulnerabilities exist
+  - opens/updates issue `Nightly security audit: vulnerabilities detected` for actionable high/critical vulnerabilities
   - closes that issue automatically when audit is clean
 - This creates an always-visible security inbox item without relying on manual checks.
 
@@ -63,3 +64,20 @@ Set these Vercel environment variables:
 - `SECURITY_ALERT_FROM` (verified sender, e.g. `security@yourdomain.com`)
 
 When an anomaly is detected for a sensitive action, the app sends an immediate alert email and stores anomaly details in the audit log metadata.
+
+## Runtime ops alerts (billing/provisioning)
+Critical operational failures (for example Stripe webhook processing failures and provisioning email warnings) emit deduped alerts via `ops_alert_events`.
+
+Config is stored in `security_settings` key `alerts:ops_runtime`:
+- `enabled`
+- `recipient_email`
+- `from_email`
+- `dedupe_window_minutes`
+- `quiet_hours_start`
+- `quiet_hours_end`
+
+Use **Admin -> Ops Health** to review:
+- webhook health
+- provisioning warning volume
+- support queue load
+- recent deduped ops alerts

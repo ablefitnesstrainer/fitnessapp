@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "rm -rf .next/types tsconfig.tsbuildinfo && tsc --noEmit",
     "test:security": "node scripts/security-regression-check.mjs"
   },
   "dependencies": {

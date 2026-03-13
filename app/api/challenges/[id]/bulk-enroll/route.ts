@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authorizeChallengeAccess } from "../../_auth";
 import { writeAuditLog } from "@/lib/audit-log";
 import { enforceRateLimit } from "@/lib/security-controls";
+import { recordLegalAcceptance } from "@/lib/legal-acceptance";
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const auth = await authorizeChallengeAccess({ requireCoachOrAdmin: true });
@@ -128,6 +129,27 @@ export async function POST(request: Request, { params }: { params: { id: string 
       start_on: startOn
     }
   });
+
+  try {
+    await Promise.all(
+      validClients.map((client) =>
+        recordLegalAcceptance({
+          supabase,
+          actorUserId: userId,
+          clientId: client.id,
+          documentType: "challenge_participation",
+          documentVersion: "v1-2026-03-12",
+          source: "coach_bulk_enroll",
+          metadata: {
+            challenge_id: params.id,
+            template_id: templateId
+          }
+        })
+      )
+    );
+  } catch {
+    // Keep enrollment flow non-blocking if legal acceptance table is unavailable.
+  }
 
   return NextResponse.json({
     ok: true,

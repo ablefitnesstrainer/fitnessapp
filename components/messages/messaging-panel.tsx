@@ -53,7 +53,7 @@ export function MessagingPanel({
 
   const loadConversation = async (peerId: string) => {
     if (!peerId) return;
-    const res = await fetch(`/api/messages?peer_id=${peerId}`);
+    const res = await fetch(`/api/messages?peer_id=${peerId}&limit=150`);
     const data = await res.json();
     if (!res.ok) {
       setStatus(data.error || "Could not load messages");

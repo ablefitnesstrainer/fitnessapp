@@ -45,6 +45,15 @@ export type SecurityAlertPolicy = {
   minimumReasons: number;
 };
 
+export type OpsAlertPolicy = {
+  enabled: boolean;
+  recipientEmail: string | null;
+  fromEmail: string | null;
+  dedupeWindowMinutes: number;
+  quietHoursStart: number;
+  quietHoursEnd: number;
+};
+
 const memoryRateLimits = new Map<string, { startedAtMs: number; hits: number }>();
 const settingsCacheTtlMs = 60_000;
 let cachedSettings: Map<string, Record<string, unknown>> | null = null;
@@ -67,6 +76,7 @@ const defaultRateLimitPolicies: Record<string, RateLimitPolicy> = {
   "community.posts.create": { limit: 30, windowSeconds: 60 * 60 },
   "community.comments.create": { limit: 120, windowSeconds: 60 * 60 },
   "community.reports.create": { limit: 40, windowSeconds: 60 * 60 },
+  "support.tickets.create": { limit: 20, windowSeconds: 60 * 60 },
   "profile.photo.upload": { limit: 20, windowSeconds: 60 * 60 },
   "challenges.logo.upload": { limit: 30, windowSeconds: 60 * 60 }
 };
@@ -84,6 +94,15 @@ const defaultAlertPolicy: SecurityAlertPolicy = {
   notifyOnNewIp: true,
   notifyOnNewDevice: true,
   minimumReasons: 1
+};
+
+const defaultOpsAlertPolicy: OpsAlertPolicy = {
+  enabled: true,
+  recipientEmail: process.env.OPS_ALERT_EMAIL || process.env.SECURITY_ALERT_EMAIL || null,
+  fromEmail: process.env.OPS_ALERT_FROM || process.env.SECURITY_ALERT_FROM || null,
+  dedupeWindowMinutes: 60,
+  quietHoursStart: 22,
+  quietHoursEnd: 6
 };
 
 function nowMs() {
@@ -195,7 +214,23 @@ export async function getSecuritySettingsForAdmin() {
     minimumReasons: parsePositiveInt(rawAlerts?.minimum_reasons, defaultAlertPolicy.minimumReasons)
   };
 
-  return { rateLimits, lockoutPolicy, alertPolicy };
+  const rawOpsAlerts = settings.get("alerts:ops_runtime");
+  const opsAlertPolicy: OpsAlertPolicy = {
+    enabled: parseBoolean(rawOpsAlerts?.enabled, defaultOpsAlertPolicy.enabled),
+    recipientEmail:
+      typeof rawOpsAlerts?.recipient_email === "string" && rawOpsAlerts.recipient_email.trim()
+        ? rawOpsAlerts.recipient_email.trim()
+        : defaultOpsAlertPolicy.recipientEmail,
+    fromEmail:
+      typeof rawOpsAlerts?.from_email === "string" && rawOpsAlerts.from_email.trim()
+        ? rawOpsAlerts.from_email.trim()
+        : defaultOpsAlertPolicy.fromEmail,
+    dedupeWindowMinutes: parsePositiveInt(rawOpsAlerts?.dedupe_window_minutes, defaultOpsAlertPolicy.dedupeWindowMinutes),
+    quietHoursStart: Math.max(0, Math.min(23, Number(rawOpsAlerts?.quiet_hours_start ?? defaultOpsAlertPolicy.quietHoursStart) || defaultOpsAlertPolicy.quietHoursStart)),
+    quietHoursEnd: Math.max(0, Math.min(23, Number(rawOpsAlerts?.quiet_hours_end ?? defaultOpsAlertPolicy.quietHoursEnd) || defaultOpsAlertPolicy.quietHoursEnd))
+  };
+
+  return { rateLimits, lockoutPolicy, alertPolicy, opsAlertPolicy };
 }
 
 export async function getSecurityAlertPolicy(): Promise<SecurityAlertPolicy> {

@@ -26,6 +26,14 @@ type Payload = {
   rateLimits: Record<string, RateLimitPolicy>;
   lockoutPolicy: LockoutPolicy;
   alertPolicy: AlertPolicy;
+  opsAlertPolicy: {
+    enabled: boolean;
+    recipientEmail: string | null;
+    fromEmail: string | null;
+    dedupeWindowMinutes: number;
+    quietHoursStart: number;
+    quietHoursEnd: number;
+  };
 };
 
 function isPayload(value: unknown): value is Payload {
@@ -34,7 +42,8 @@ function isPayload(value: unknown): value is Payload {
     typeof value === "object" &&
     "rateLimits" in (value as Record<string, unknown>) &&
     "lockoutPolicy" in (value as Record<string, unknown>) &&
-    "alertPolicy" in (value as Record<string, unknown>)
+    "alertPolicy" in (value as Record<string, unknown>) &&
+    "opsAlertPolicy" in (value as Record<string, unknown>)
   );
 }
 
@@ -54,7 +63,10 @@ const labels: Record<string, string> = {
   "funnel.club_checkout": "Funnel club checkouts",
   "community.posts.create": "Community posts",
   "community.comments.create": "Community comments",
-  "community.reports.create": "Community reports"
+  "community.reports.create": "Community reports",
+  "support.tickets.create": "Support ticket creation",
+  "profile.photo.upload": "Profile photo uploads",
+  "challenges.logo.upload": "Challenge logo uploads"
 };
 
 export function SecuritySettingsForm() {
@@ -232,6 +244,90 @@ export function SecuritySettingsForm() {
       <div>
         <h2 className="text-lg font-semibold">Anomaly Email Alerts</h2>
         <p className="text-sm text-slate-600">Email alerts for sensitive actions from new IP/device patterns.</p>
+      </div>
+
+      <div>
+        <h2 className="text-lg font-semibold">Runtime Ops Alerts</h2>
+        <p className="text-sm text-slate-600">Alerts for webhook/provisioning failures with dedupe and quiet hours.</p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <label className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
+          <input
+            type="checkbox"
+            checked={settings.opsAlertPolicy.enabled}
+            onChange={(e) => setSettings({ ...settings, opsAlertPolicy: { ...settings.opsAlertPolicy, enabled: e.target.checked } })}
+          />
+          Enable runtime ops alerts
+        </label>
+        <div>
+          <label className="label">Dedupe window (minutes)</label>
+          <input
+            className="input"
+            type="number"
+            min={1}
+            max={1440}
+            value={settings.opsAlertPolicy.dedupeWindowMinutes}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                opsAlertPolicy: { ...settings.opsAlertPolicy, dedupeWindowMinutes: Math.max(1, Number(e.target.value) || 1) }
+              })
+            }
+          />
+        </div>
+        <div>
+          <label className="label">Runtime alert recipient</label>
+          <input
+            className="input"
+            type="email"
+            value={settings.opsAlertPolicy.recipientEmail || ""}
+            onChange={(e) => setSettings({ ...settings, opsAlertPolicy: { ...settings.opsAlertPolicy, recipientEmail: e.target.value || null } })}
+            placeholder="ops@yourdomain.com"
+          />
+        </div>
+        <div>
+          <label className="label">Runtime alert from</label>
+          <input
+            className="input"
+            type="email"
+            value={settings.opsAlertPolicy.fromEmail || ""}
+            onChange={(e) => setSettings({ ...settings, opsAlertPolicy: { ...settings.opsAlertPolicy, fromEmail: e.target.value || null } })}
+            placeholder="alerts@yourdomain.com"
+          />
+        </div>
+        <div>
+          <label className="label">Quiet hours start (0-23)</label>
+          <input
+            className="input"
+            type="number"
+            min={0}
+            max={23}
+            value={settings.opsAlertPolicy.quietHoursStart}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                opsAlertPolicy: { ...settings.opsAlertPolicy, quietHoursStart: Math.min(23, Math.max(0, Number(e.target.value) || 0)) }
+              })
+            }
+          />
+        </div>
+        <div>
+          <label className="label">Quiet hours end (0-23)</label>
+          <input
+            className="input"
+            type="number"
+            min={0}
+            max={23}
+            value={settings.opsAlertPolicy.quietHoursEnd}
+            onChange={(e) =>
+              setSettings({
+                ...settings,
+                opsAlertPolicy: { ...settings.opsAlertPolicy, quietHoursEnd: Math.min(23, Math.max(0, Number(e.target.value) || 0)) }
+              })
+            }
+          />
+        </div>
       </div>
 
       <div className="grid gap-3 md:grid-cols-2">

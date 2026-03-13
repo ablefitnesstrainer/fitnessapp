@@ -61,6 +61,7 @@ jobs:
             };
 
             const total = counts.critical + counts.high + counts.moderate + counts.low + counts.info;
+            const actionable = counts.critical + counts.high;
             const issueTitle = 'Nightly security audit: vulnerabilities detected';
 
             const { owner, repo } = context.repo;
@@ -81,13 +82,14 @@ jobs:
               `- Low: ${counts.low}`,
               `- Info: ${counts.info}`,
               `- Total: ${total}`,
+              `- Actionable (high+critical): ${actionable}`,
               '',
               `Workflow run: ${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`,
               '',
               '_This issue is maintained automatically by `.github/workflows/nightly-security-audit.yml`._'
             ].join('\n');
 
-            if (total > 0) {
+            if (actionable > 0) {
               if (existing) {
                 await github.rest.issues.update({
                   owner,
@@ -106,7 +108,7 @@ jobs:
                 core.notice(`Created vulnerability issue #${created.data.number}`);
               }
 
-              core.setFailed(`Nightly audit found ${total} vulnerabilities.`);
+              core.setFailed(`Nightly audit found ${actionable} actionable vulnerabilities (high/critical).`);
               return;
             }
 

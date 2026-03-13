@@ -15,6 +15,8 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const peerId = searchParams.get("peer_id");
+  const before = searchParams.get("before");
+  const limit = Math.min(300, Math.max(20, Number(searchParams.get("limit") || 150)));
   if (!peerId) return NextResponse.json({ error: "peer_id is required" }, { status: 400 });
 
   const { error: readError } = await supabase
@@ -27,15 +29,25 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: readError.message }, { status: 400 });
   }
 
-  const { data: messages, error } = await supabase
+  let messagesQuery = supabase
     .from("messages")
     .select("*")
     .or(`and(sender_id.eq.${user.id},receiver_id.eq.${peerId}),and(sender_id.eq.${peerId},receiver_id.eq.${user.id})`)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(limit + 1);
+
+  if (before) {
+    messagesQuery = messagesQuery.lt("created_at", before);
+  }
+
+  const { data: messages, error } = await messagesQuery;
 
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
-  const list = messages || [];
+  const rawList = messages || [];
+  const hasMore = rawList.length > limit;
+  const bounded = hasMore ? rawList.slice(0, limit) : rawList;
+  const list = bounded.reverse();
   const paths = list.map((message) => message.attachment_path).filter((path): path is string => Boolean(path));
   const signedByPath = new Map<string, string>();
   if (paths.length > 0) {
@@ -57,7 +69,11 @@ export async function GET(request: Request) {
     attachment_url: message.attachment_path ? signedByPath.get(message.attachment_path) || null : message.attachment_url || null
   }));
 
-  return NextResponse.json({ messages: normalized });
+  return NextResponse.json({
+    messages: normalized,
+    has_more: hasMore,
+    next_before: hasMore ? bounded[bounded.length - 1]?.created_at || null : null
+  });
 }
 
 export async function POST(request: Request) {

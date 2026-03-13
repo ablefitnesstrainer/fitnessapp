@@ -4,6 +4,7 @@ import { createDocumentFromTemplate, deriveContractStatus, getDocumentRecipients
 import { enforceRateLimit } from "@/lib/security-controls";
 import { writeAuditLog } from "@/lib/audit-log";
 import { requireRecentAuth } from "@/lib/session-security";
+import { recordLegalAcceptance } from "@/lib/legal-acceptance";
 
 type AppUser = {
   id: string;
@@ -223,6 +224,24 @@ export async function POST(request: Request) {
         document_id: created.id
       }
     });
+
+    try {
+      await recordLegalAcceptance({
+        supabase: auth.supabase,
+        actorUserId: auth.user.id,
+        appUserId: joined?.id || null,
+        clientId: auth.clientId,
+        documentType: "contract_disclosure",
+        documentVersion: `template-${templateId}`,
+        source: "contract_send",
+        metadata: {
+          document_id: created.id,
+          provider: "breezedoc"
+        }
+      });
+    } catch {
+      // Keep contract send non-blocking if legal acceptance table is unavailable.
+    }
 
     return NextResponse.json({ contract });
   } catch (err) {

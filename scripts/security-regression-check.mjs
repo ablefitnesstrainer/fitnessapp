@@ -20,12 +20,19 @@ function assertIncludes(path, needle) {
 
 function main() {
   assert(existsSync(resolve(root, "app/(app)/admin/security/page.tsx")), "Missing admin security page");
+  assert(existsSync(resolve(root, "app/(app)/admin/billing/page.tsx")), "Missing admin billing page");
+  assert(existsSync(resolve(root, "app/(app)/admin/ops-health/page.tsx")), "Missing admin ops health page");
   assert(existsSync(resolve(root, "app/(app)/admin/security/settings/page.tsx")), "Missing admin security settings page");
+  assert(existsSync(resolve(root, "app/(app)/support/page.tsx")), "Missing support page");
   assert(existsSync(resolve(root, "app/(app)/settings/mfa/page.tsx")), "Missing MFA settings page");
   assert(existsSync(resolve(root, "app/api/auth/login/route.ts")), "Missing server-side login route");
   assert(existsSync(resolve(root, "app/api/auth/reauth/route.ts")), "Missing reauth API route");
   assert(existsSync(resolve(root, "app/api/contracts/route.ts")), "Missing contracts API route");
+  assert(existsSync(resolve(root, "app/api/support/tickets/route.ts")), "Missing support tickets API route");
+  assert(existsSync(resolve(root, "app/api/support/tickets/[id]/route.ts")), "Missing support ticket detail API route");
   assert(existsSync(resolve(root, "app/api/contracts/webhook/route.ts")), "Missing contracts webhook route");
+  assert(existsSync(resolve(root, "app/api/admin/ops-health/route.ts")), "Missing admin ops health API route");
+  assert(existsSync(resolve(root, "app/api/admin/billing/timeline/route.ts")), "Missing billing timeline API route");
   assert(existsSync(resolve(root, "app/api/admin/security-settings/route.ts")), "Missing security settings API route");
   assert(existsSync(resolve(root, "lib/security-controls.ts")), "Missing security controls helper");
   assert(existsSync(resolve(root, "supabase/migrations/0018_security_rate_limits_and_lockouts.sql")), "Missing security migration");
@@ -45,11 +52,16 @@ function main() {
   assertIncludes("app/api/exercises/import/route.ts", "enforceRateLimit");
   assertIncludes("app/api/admin/security-settings/route.ts", "security.settings_update");
   assertIncludes("app/api/admin/security-settings/route.ts", "requireRecentAuth");
+  assertIncludes("app/api/admin/billing/timeline/route.ts", "Forbidden");
+  assertIncludes("app/api/admin/ops-health/route.ts", "Forbidden");
   assertIncludes("app/api/contracts/route.ts", "contracts.send");
   assertIncludes("app/api/contracts/route.ts", "requireRecentAuth");
+  assertIncludes("app/api/support/tickets/route.ts", "Unauthorized");
+  assertIncludes("app/api/support/tickets/[id]/route.ts", "Unauthorized");
   assertIncludes("app/api/contracts/webhook/route.ts", "Invalid webhook signature");
   assertIncludes("app/api/clients/route.ts", "requireRecentAuth");
   assertIncludes("components/navigation.tsx", "/settings/mfa");
+  assertIncludes("components/navigation.tsx", "/support");
 
   console.log("Security regression check passed.");
 }

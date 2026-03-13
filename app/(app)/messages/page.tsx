@@ -33,7 +33,8 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
         .from("messages")
         .select("*")
         .or(`and(sender_id.eq.${currentUser.id},receiver_id.eq.${selectedPeer.id}),and(sender_id.eq.${selectedPeer.id},receiver_id.eq.${currentUser.id})`)
-        .order("created_at", { ascending: true })
+        .order("created_at", { ascending: false })
+        .limit(150)
     : { data: [], error: null };
 
   if (messagesError) {
@@ -61,7 +62,7 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
       <MessagingPanel
         currentUserId={currentUser.id}
         peers={normalizedPeers}
-        initialMessages={initialMessages || []}
+        initialMessages={(initialMessages || []).slice().reverse()}
         initialSelectedPeerId={selectedPeer?.id || ""}
         initialPreset={searchParams?.preset || ""}
         canUseTemplates={currentUser.role === "coach" || currentUser.role === "admin"}
