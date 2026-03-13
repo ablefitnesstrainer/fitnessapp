@@ -2,6 +2,45 @@ import { NextResponse } from "next/server";
 import { getStripeClient } from "@/lib/stripe";
 import { enforceRateLimit, getRequestIp } from "@/lib/security-controls";
 
+function normalizeOrigin(origin?: string | null) {
+  if (!origin) return null;
+  try {
+    const url = new URL(origin);
+    return `${url.protocol}//${url.host}`.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function allowedOrigins() {
+  const configured = (process.env.CLUB_CHECKOUT_ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((value) => normalizeOrigin(value.trim()))
+    .filter((value): value is string => Boolean(value));
+
+  return new Set([
+    "https://ablefitnesscoaching.com",
+    "https://www.ablefitnesscoaching.com",
+    ...configured
+  ]);
+}
+
+function corsHeaders(origin?: string | null) {
+  const normalized = normalizeOrigin(origin);
+  const headers = new Headers({
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, X-Club-Shared-Key",
+    "Access-Control-Max-Age": "86400",
+    Vary: "Origin"
+  });
+
+  if (normalized && allowedOrigins().has(normalized)) {
+    headers.set("Access-Control-Allow-Origin", normalized);
+  }
+
+  return headers;
+}
+
 function baseUrlFromRequest(request: Request) {
   const configured = process.env.NEXT_PUBLIC_APP_URL;
   if (configured) return configured.replace(/\/$/, "");
@@ -9,9 +48,24 @@ function baseUrlFromRequest(request: Request) {
   return `${url.protocol}//${url.host}`;
 }
 
+export async function OPTIONS(request: Request) {
+  const origin = request.headers.get("origin");
+  const headers = corsHeaders(origin);
+  if (!headers.get("Access-Control-Allow-Origin")) {
+    return new NextResponse(null, { status: 403, headers });
+  }
+  return new NextResponse(null, { status: 204, headers });
+}
+
 export async function POST(request: Request) {
+  const origin = request.headers.get("origin");
+  const headers = corsHeaders(origin);
+  if (!headers.get("Access-Control-Allow-Origin")) {
+    return NextResponse.json({ error: "Origin not allowed." }, { status: 403, headers });
+  }
+
   if (!process.env.STRIPE_SECRET_KEY || !(process.env.CLUB_STRIPE_PRICE_ID || process.env.STRIPE_PRICE_ID)) {
-    return NextResponse.json({ error: "Stripe is not configured." }, { status: 400 });
+    return NextResponse.json({ error: "Stripe is not configured." }, { status: 400, headers });
   }
 
   const ip = getRequestIp(request);
@@ -21,12 +75,16 @@ export async function POST(request: Request) {
     limit: 30,
     windowSeconds: 60 * 60
   });
-  if (limited) return limited;
+  if (limited) {
+    const res = limited;
+    headers.forEach((value, key) => res.headers.set(key, value));
+    return res;
+  }
 
   const configuredShared = process.env.CLUB_CHECKOUT_SHARED_KEY;
   const providedShared = request.headers.get("x-club-shared-key");
   if (providedShared && configuredShared && providedShared !== configuredShared) {
-    return NextResponse.json({ error: "Invalid shared key" }, { status: 403 });
+    return NextResponse.json({ error: "Invalid shared key" }, { status: 403, headers });
   }
 
   const body = (await request.json().catch(() => ({}))) as {
@@ -84,5 +142,5 @@ export async function POST(request: Request) {
     cancel_url: cancelUrl
   });
 
-  return NextResponse.json({ checkout_url: session.url });
+  return NextResponse.json({ checkout_url: session.url }, { headers });
 }
