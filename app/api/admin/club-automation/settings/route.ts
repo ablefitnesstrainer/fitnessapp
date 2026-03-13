@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase-server";
 import { getClubAutomationSettings, setClubAutomationSettings } from "@/lib/club-automation";
 import { writeAuditLog } from "@/lib/audit-log";
-import { requireRecentAuth } from "@/lib/session-security";
 
 async function authorizeAdmin(supabase: ReturnType<typeof createClient>) {
   const {
@@ -26,9 +25,6 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const reauth = requireRecentAuth(request);
-  if (reauth) return reauth;
-
   const supabase = createClient();
   const auth = await authorizeAdmin(supabase);
   if ("error" in auth) return auth.error;
