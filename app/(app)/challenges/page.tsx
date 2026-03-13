@@ -48,7 +48,7 @@ async function fetchChallenges(supabase: ReturnType<typeof createClient>, userId
 
     const { data: challenges, error } = await supabase
       .from("challenges")
-      .select("id,name,description,starts_on,ends_on,status")
+      .select("id,name,description,starts_on,ends_on,status,logo_storage_path")
       .order("starts_on", { ascending: false });
     if (error) return { data: null, error };
 
@@ -63,10 +63,22 @@ async function fetchChallenges(supabase: ReturnType<typeof createClient>, userId
     if (enrollmentsError) return { data: null, error: enrollmentsError };
 
     const enrolled = new Set((enrollments || []).map((item) => item.challenge_id));
+    const logoPaths = (challenges || [])
+      .map((item: any) => item.logo_storage_path)
+      .filter((value: unknown): value is string => typeof value === "string" && value.length > 0);
+    const logoUrlByPath = new Map<string, string>();
+    if (logoPaths.length) {
+      const admin = createAdminClient();
+      const { data: signedRows } = await admin.storage.from("challenge-logos").createSignedUrls(logoPaths, 60 * 60);
+      signedRows?.forEach((row, index) => {
+        if (row?.signedUrl) logoUrlByPath.set(logoPaths[index], row.signedUrl);
+      });
+    }
     return {
       data: (challenges || []).map((challenge) => ({
         ...challenge,
-        enrolled: enrolled.has(challenge.id)
+        enrolled: enrolled.has(challenge.id),
+        logo_url: challenge.logo_storage_path ? logoUrlByPath.get(challenge.logo_storage_path) || null : null
       })),
       error: null
     };
@@ -76,15 +88,30 @@ async function fetchChallenges(supabase: ReturnType<typeof createClient>, userId
     role === "coach"
       ? supabase
           .from("challenges")
-          .select("id,name,description,starts_on,ends_on,status,created_by,challenge_enrollments(id),challenge_program_assignments(template_id,start_on,assignment_note),challenge_leaderboard_configs(ranking_slot,label,workouts_weight,checkins_weight,nutrition_weight,habits_weight,tie_breaker)")
+          .select(
+            "id,name,description,starts_on,ends_on,status,created_by,logo_storage_path,challenge_enrollments(id),challenge_program_assignments(template_id,start_on,assignment_note),challenge_leaderboard_configs(ranking_slot,label,workouts_weight,checkins_weight,nutrition_weight,habits_weight,tie_breaker)"
+          )
           .eq("created_by", userId)
       : supabase
           .from("challenges")
-          .select("id,name,description,starts_on,ends_on,status,created_by,challenge_enrollments(id),challenge_program_assignments(template_id,start_on,assignment_note),challenge_leaderboard_configs(ranking_slot,label,workouts_weight,checkins_weight,nutrition_weight,habits_weight,tie_breaker)");
+          .select(
+            "id,name,description,starts_on,ends_on,status,created_by,logo_storage_path,challenge_enrollments(id),challenge_program_assignments(template_id,start_on,assignment_note),challenge_leaderboard_configs(ranking_slot,label,workouts_weight,checkins_weight,nutrition_weight,habits_weight,tie_breaker)"
+          );
 
   const result = await query.order("starts_on", { ascending: false });
 
   if (result.error || !result.data) return result;
+  const logoPaths = result.data
+    .map((challenge: any) => challenge.logo_storage_path)
+    .filter((value: unknown): value is string => typeof value === "string" && value.length > 0);
+  const logoUrlByPath = new Map<string, string>();
+  if (logoPaths.length) {
+    const admin = createAdminClient();
+    const { data: signedRows } = await admin.storage.from("challenge-logos").createSignedUrls(logoPaths, 60 * 60);
+    signedRows?.forEach((row, index) => {
+      if (row?.signedUrl) logoUrlByPath.set(logoPaths[index], row.signedUrl);
+    });
+  }
 
   const mapped = result.data.map((challenge: any) => ({
     id: challenge.id,
@@ -93,6 +120,7 @@ async function fetchChallenges(supabase: ReturnType<typeof createClient>, userId
     starts_on: challenge.starts_on,
     ends_on: challenge.ends_on,
     status: challenge.status,
+    logo_url: challenge.logo_storage_path ? logoUrlByPath.get(challenge.logo_storage_path) || null : null,
     enrollment_count: (challenge.challenge_enrollments || []).length,
     program_assignment: challenge.challenge_program_assignments?.[0] || null,
     ranking_configs: challenge.challenge_leaderboard_configs || []

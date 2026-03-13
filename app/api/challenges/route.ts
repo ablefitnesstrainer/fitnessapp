@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authorizeChallengeAccess } from "./_auth";
 import { writeAuditLog } from "@/lib/audit-log";
 import { enforceRateLimit } from "@/lib/security-controls";
+import { createAdminClient } from "@/lib/supabase-admin";
 
 type RankingConfigInput = {
   ranking_slot: number;
@@ -22,7 +23,10 @@ export async function GET(request: Request) {
   const status = searchParams.get("status");
 
   if (role === "client") {
-    const query = supabase.from("challenges").select("id,name,description,starts_on,ends_on,status,created_at").order("starts_on", { ascending: false });
+    const query = supabase
+      .from("challenges")
+      .select("id,name,description,starts_on,ends_on,status,created_at,logo_storage_path")
+      .order("starts_on", { ascending: false });
 
     if (status) query.eq("status", status);
     const { data: challenges, error } = await query;
@@ -39,6 +43,17 @@ export async function GET(request: Request) {
     if (enrollmentError) return NextResponse.json({ error: enrollmentError.message }, { status: 400 });
 
     const enrolledChallengeIds = new Set((enrollments || []).map((entry) => entry.challenge_id));
+    const logoPaths = (challenges || [])
+      .map((entry) => entry.logo_storage_path)
+      .filter((value): value is string => typeof value === "string" && value.length > 0);
+    const logoUrlByPath = new Map<string, string>();
+    if (logoPaths.length) {
+      const admin = createAdminClient();
+      const { data: signedRows } = await admin.storage.from("challenge-logos").createSignedUrls(logoPaths, 60 * 60);
+      signedRows?.forEach((row, idx) => {
+        if (row?.signedUrl) logoUrlByPath.set(logoPaths[idx], row.signedUrl);
+      });
+    }
 
     return NextResponse.json({
       challenges: (challenges || []).map((entry) => ({
@@ -49,14 +64,15 @@ export async function GET(request: Request) {
         ends_on: entry.ends_on,
         status: entry.status,
         created_at: entry.created_at,
-        enrolled: enrolledChallengeIds.has(entry.id)
+        enrolled: enrolledChallengeIds.has(entry.id),
+        logo_url: entry.logo_storage_path ? logoUrlByPath.get(entry.logo_storage_path) || null : null
       }))
     });
   }
 
   const query = supabase
     .from("challenges")
-    .select("id,name,description,starts_on,ends_on,status,created_by,created_at")
+    .select("id,name,description,starts_on,ends_on,status,created_by,created_at,logo_storage_path")
     .order("starts_on", { ascending: false });
   if (status) query.eq("status", status);
   if (role === "coach") query.eq("created_by", userId);
@@ -107,13 +123,25 @@ export async function GET(request: Request) {
     current.push(config);
     configByChallenge.set(config.challenge_id, current);
   }
+  const logoPaths = (challenges || [])
+    .map((entry) => entry.logo_storage_path)
+    .filter((value): value is string => typeof value === "string" && value.length > 0);
+  const logoUrlByPath = new Map<string, string>();
+  if (logoPaths.length) {
+    const admin = createAdminClient();
+    const { data: signedRows } = await admin.storage.from("challenge-logos").createSignedUrls(logoPaths, 60 * 60);
+    signedRows?.forEach((row, idx) => {
+      if (row?.signedUrl) logoUrlByPath.set(logoPaths[idx], row.signedUrl);
+    });
+  }
 
   return NextResponse.json({
     challenges: (challenges || []).map((challenge) => ({
       ...challenge,
       enrollment_count: enrollmentCountByChallenge.get(challenge.id) || 0,
       program_assignment: mappingByChallenge.get(challenge.id) || null,
-      ranking_configs: configByChallenge.get(challenge.id) || []
+      ranking_configs: configByChallenge.get(challenge.id) || [],
+      logo_url: challenge.logo_storage_path ? logoUrlByPath.get(challenge.logo_storage_path) || null : null
     }))
   });
 }

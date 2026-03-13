@@ -21,7 +21,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   const { data: existing, error: existingError } = await supabase
     .from("challenges")
-    .select("id,created_by,status")
+    .select("id,created_by,status,logo_storage_path")
     .eq("id", params.id)
     .maybeSingle();
   if (existingError) return NextResponse.json({ error: existingError.message }, { status: 400 });
@@ -114,7 +114,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   const { data: challenge, error: challengeError } = await supabase
     .from("challenges")
-    .select("id,name,description,starts_on,ends_on,status,created_by,created_at,updated_at")
+    .select("id,name,description,starts_on,ends_on,status,created_by,created_at,updated_at,logo_storage_path")
     .eq("id", params.id)
     .single();
   if (challengeError) return NextResponse.json({ error: challengeError.message }, { status: 400 });

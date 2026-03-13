@@ -147,7 +147,11 @@ export async function updateSession(request: NextRequest) {
 
   const isPageRequest = !pathname.startsWith("/api") && !isPublicAuthPath;
   if (user && isPageRequest) {
-    const appUserResult = await supabase.from("app_users").select("id,role,subscription_status").eq("id", user.id).maybeSingle();
+    const appUserResult = await supabase
+      .from("app_users")
+      .select("id,role,subscription_status,stripe_customer_id,stripe_subscription_id")
+      .eq("id", user.id)
+      .maybeSingle();
     const appUser =
       appUserResult.error && isMissingColumn(appUserResult.error.code)
         ? (await supabase.from("app_users").select("id,role").eq("id", user.id).maybeSingle()).data
@@ -162,9 +166,15 @@ export async function updateSession(request: NextRequest) {
       pathname.startsWith("/settings/password") ||
       pathname.startsWith("/settings/mfa");
 
+    const subscriptionStatus =
+      appUser && "subscription_status" in appUser ? (appUser as { subscription_status?: string | null }).subscription_status : null;
+    const hasStripeBillingProfile = Boolean(
+      appUser &&
+        (("stripe_customer_id" in appUser && (appUser as { stripe_customer_id?: string | null }).stripe_customer_id) ||
+          ("stripe_subscription_id" in appUser && (appUser as { stripe_subscription_id?: string | null }).stripe_subscription_id))
+    );
+
     if (appUser?.role === "admin" || appUser?.role === "coach") {
-      const subscriptionStatus =
-        appUser && "subscription_status" in appUser ? (appUser as { subscription_status?: string | null }).subscription_status : null;
       if (isBillingEnforced() && !billingBypassPath && !isSubscriptionActive(subscriptionStatus)) {
         const redirectUrl = request.nextUrl.clone();
         redirectUrl.pathname = "/settings/billing";
@@ -227,6 +237,13 @@ export async function updateSession(request: NextRequest) {
     }
 
     if (appUser?.role === "client") {
+      if (isBillingEnforced() && hasStripeBillingProfile && !billingBypassPath && !isSubscriptionActive(subscriptionStatus)) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = "/settings/billing";
+        redirectUrl.searchParams.set("required", "1");
+        return withSecurityHeaders(request, NextResponse.redirect(redirectUrl));
+      }
+
       const { data: clientRow } = await supabase.from("clients").select("id").eq("user_id", user.id).maybeSingle();
       if (clientRow?.id) {
         const { data: intakeRow, error: intakeError } = await supabase.from("client_intakes").select("id").eq("client_id", clientRow.id).maybeSingle();

@@ -66,7 +66,9 @@ const defaultRateLimitPolicies: Record<string, RateLimitPolicy> = {
   "funnel.club_checkout": { limit: 30, windowSeconds: 60 * 60 },
   "community.posts.create": { limit: 30, windowSeconds: 60 * 60 },
   "community.comments.create": { limit: 120, windowSeconds: 60 * 60 },
-  "community.reports.create": { limit: 40, windowSeconds: 60 * 60 }
+  "community.reports.create": { limit: 40, windowSeconds: 60 * 60 },
+  "profile.photo.upload": { limit: 20, windowSeconds: 60 * 60 },
+  "challenges.logo.upload": { limit: 30, windowSeconds: 60 * 60 }
 };
 
 const defaultLockoutPolicy: LockoutPolicy = {

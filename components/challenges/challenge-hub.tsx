@@ -9,6 +9,7 @@ type Challenge = {
   id: string;
   name: string;
   description: string | null;
+  logo_url?: string | null;
   starts_on: string;
   ends_on: string;
   status: "draft" | "active" | "closed";
@@ -64,6 +65,7 @@ export function ChallengeHub({
   const [challenges, setChallenges] = useState(initialChallenges || []);
   const [status, setStatus] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [logoFiles, setLogoFiles] = useState<Record<string, File | null>>({});
   const [welcomeVideoUrl, setWelcomeVideoUrl] = useState(initialWelcomeVideoUrl);
   const [welcomeVideoTitle, setWelcomeVideoTitle] = useState(initialWelcomeVideoTitle);
 
@@ -236,6 +238,35 @@ export function ChallengeHub({
     await refreshChallenges();
   }
 
+  async function uploadLogo(challengeId: string) {
+    const file = logoFiles[challengeId];
+    if (!file) {
+      setStatus("Select a logo file first.");
+      return;
+    }
+
+    setPending(true);
+    setStatus(null);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch(`/api/challenges/${challengeId}/logo`, {
+      method: "POST",
+      body: formData
+    });
+    const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+    if (!res.ok) {
+      setStatus(payload?.error || "Failed to upload challenge logo.");
+      setPending(false);
+      return;
+    }
+
+    setLogoFiles((prev) => ({ ...prev, [challengeId]: null }));
+    setStatus("Challenge logo updated.");
+    setPending(false);
+    await refreshChallenges();
+  }
+
   return (
     <section className="space-y-5">
       <div className="card bg-gradient-to-r from-slate-900 via-blue-900 to-cyan-700 text-white">
@@ -390,6 +421,13 @@ export function ChallengeHub({
               {challenges.length === 0 && <p className="text-sm text-slate-600">No challenges yet.</p>}
               {challenges.map((challenge) => (
                 <div key={challenge.id} className="rounded-xl border border-slate-200 p-3">
+                  {challenge.logo_url && (
+                    <img
+                      src={challenge.logo_url}
+                      alt={`${challenge.name} logo`}
+                      className="mb-2 h-12 w-12 rounded-xl border border-slate-200 object-cover"
+                    />
+                  )}
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                       <p className="font-semibold text-slate-900">{challenge.name}</p>
@@ -413,6 +451,22 @@ export function ChallengeHub({
                       </button>
                     </div>
                   </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="text-xs text-slate-600"
+                      onChange={(e) =>
+                        setLogoFiles((prev) => ({
+                          ...prev,
+                          [challenge.id]: e.target.files?.[0] || null
+                        }))
+                      }
+                    />
+                    <button className="btn-secondary" type="button" disabled={pending} onClick={() => void uploadLogo(challenge.id)}>
+                      Upload Logo
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -426,6 +480,13 @@ export function ChallengeHub({
           {challenges.length === 0 && <p className="text-sm text-slate-600">No challenges available right now.</p>}
           {challenges.map((challenge) => (
             <div key={challenge.id} className="rounded-xl border border-slate-200 p-3">
+              {challenge.logo_url && (
+                <img
+                  src={challenge.logo_url}
+                  alt={`${challenge.name} logo`}
+                  className="mb-2 h-12 w-12 rounded-xl border border-slate-200 object-cover"
+                />
+              )}
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="font-semibold text-slate-900">{challenge.name}</p>
