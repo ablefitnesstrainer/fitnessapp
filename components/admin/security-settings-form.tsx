@@ -51,6 +51,7 @@ const labels: Record<string, string> = {
   "contracts.send": "Contract sends",
   "challenges.create": "Challenge creates",
   "challenges.bulk_enroll": "Challenge bulk enroll",
+  "funnel.club_checkout": "Funnel club checkouts",
   "community.posts.create": "Community posts",
   "community.comments.create": "Community comments",
   "community.reports.create": "Community reports"

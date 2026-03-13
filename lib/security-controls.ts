@@ -63,6 +63,7 @@ const defaultRateLimitPolicies: Record<string, RateLimitPolicy> = {
   "contracts.send": { limit: 10, windowSeconds: 60 * 60 },
   "challenges.create": { limit: 20, windowSeconds: 60 * 60 },
   "challenges.bulk_enroll": { limit: 20, windowSeconds: 60 * 60 },
+  "funnel.club_checkout": { limit: 30, windowSeconds: 60 * 60 },
   "community.posts.create": { limit: 30, windowSeconds: 60 * 60 },
   "community.comments.create": { limit: 120, windowSeconds: 60 * 60 },
   "community.reports.create": { limit: 40, windowSeconds: 60 * 60 }

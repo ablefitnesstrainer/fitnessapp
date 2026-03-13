@@ -179,6 +179,16 @@ const links: NavLink[] = [
     )
   },
   {
+    href: "/admin/club-automation",
+    label: "Club Automation",
+    roles: ["admin"],
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+        <path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5-4.9-2.6-4.9 2.6.9-5.5-4-3.9 5.5-.8L12 3z" stroke="currentColor" strokeWidth="1.7" />
+      </svg>
+    )
+  },
+  {
     href: "/community/moderation",
     label: "Moderation",
     roles: ["admin", "coach"],
