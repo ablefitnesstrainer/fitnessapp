@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 type Template = { id: string; name: string };
 type Client = { id: string; user_id: string; user_name: string };
@@ -56,6 +57,13 @@ export function ProgramGenerator({ templates, clients }: { templates: Template[]
             <h2 className="text-xl font-bold">Program Generator</h2>
             <p className="mt-1 text-sm text-blue-50">
               Clones week 1 from a template, applies rep/set progression over time, inserts a deload week, and can assign the final program to a client.
+            </p>
+            <p className="mt-2 text-xs text-blue-100">
+              Need to tweak specific weeks after generation? Use{" "}
+              <Link href="/programs/editor" className="font-semibold underline underline-offset-2">
+                Program Editor
+              </Link>
+              .
             </p>
           </div>
         </div>

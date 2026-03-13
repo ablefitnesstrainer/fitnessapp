@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { env } from "@/lib/env";
+import { isBillingEnforced, isSubscriptionActive } from "@/lib/billing";
 import {
   AUTH_AT_COOKIE,
   LAST_SEEN_AT_COOKIE,
@@ -13,6 +14,7 @@ import {
 
 const allowPublicSignup = process.env.NEXT_PUBLIC_ALLOW_PUBLIC_SIGNUP === "true";
 const isMissingRelation = (code?: string) => code === "42P01" || code === "PGRST205";
+const isMissingColumn = (code?: string) => code === "42703" || code === "PGRST204";
 const mutatingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 function isMfaTrustValid(trustedUntil: string | null | undefined) {
@@ -144,12 +146,31 @@ export async function updateSession(request: NextRequest) {
 
   const isPageRequest = !pathname.startsWith("/api") && !isPublicAuthPath;
   if (user && isPageRequest) {
-    const { data: appUser } = await supabase.from("app_users").select("id,role").eq("id", user.id).maybeSingle();
+    const appUserResult = await supabase.from("app_users").select("id,role,subscription_status").eq("id", user.id).maybeSingle();
+    const appUser =
+      appUserResult.error && isMissingColumn(appUserResult.error.code)
+        ? (await supabase.from("app_users").select("id,role").eq("id", user.id).maybeSingle()).data
+        : appUserResult.data;
     touchLastSeenCookie(supabaseResponse);
 
     const isMfaPage = pathname.startsWith("/settings/mfa");
+    const isBillingPage = pathname.startsWith("/settings/billing");
+    const billingBypassPath =
+      isBillingPage ||
+      pathname.startsWith("/settings/profile") ||
+      pathname.startsWith("/settings/password") ||
+      pathname.startsWith("/settings/mfa");
 
     if (appUser?.role === "admin" || appUser?.role === "coach") {
+      const subscriptionStatus =
+        appUser && "subscription_status" in appUser ? (appUser as { subscription_status?: string | null }).subscription_status : null;
+      if (isBillingEnforced() && !billingBypassPath && !isSubscriptionActive(subscriptionStatus)) {
+        const redirectUrl = request.nextUrl.clone();
+        redirectUrl.pathname = "/settings/billing";
+        redirectUrl.searchParams.set("required", "1");
+        return withSecurityHeaders(request, NextResponse.redirect(redirectUrl));
+      }
+
       const lastSeenAt = request.cookies.get(LAST_SEEN_AT_COOKIE)?.value || null;
       const idleTimeoutMinutes = getIdleTimeoutMinutes();
       if (isSessionIdle(lastSeenAt, idleTimeoutMinutes)) {

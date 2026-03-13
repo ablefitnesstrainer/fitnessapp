@@ -63,6 +63,16 @@ const links: NavLink[] = [
     )
   },
   {
+    href: "/programs/editor",
+    label: "Program Editor",
+    roles: ["admin", "coach"],
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+        <path d="M4 19h4l10-10-4-4L4 15v4zm10-12l4 4" stroke="currentColor" strokeWidth="1.7" />
+      </svg>
+    )
+  },
+  {
     href: "/challenges",
     label: "Challenges",
     icon: (
@@ -112,6 +122,16 @@ const links: NavLink[] = [
     label: "Security",
     icon: (
       <svg viewBox="0 0 24 24" fill="none" className={iconClass}><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3z" stroke="currentColor" strokeWidth="1.7"/></svg>
+    )
+  },
+  {
+    href: "/settings/billing",
+    label: "Billing",
+    roles: ["admin", "coach"],
+    icon: (
+      <svg viewBox="0 0 24 24" fill="none" className={iconClass}>
+        <path d="M3 7h18v10H3V7zm0 3h18M7 14h3" stroke="currentColor" strokeWidth="1.7" />
+      </svg>
     )
   },
   {
