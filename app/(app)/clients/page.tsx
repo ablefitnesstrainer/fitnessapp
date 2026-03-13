@@ -1,5 +1,6 @@
 import { RosterTable } from "@/components/clients/roster-table";
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { displayNameFromIdentity } from "@/lib/display-name";
 import { getCurrentAppUser } from "@/services/auth-service";
 
@@ -40,7 +41,9 @@ export default async function ClientsPage() {
       : supabase.from("program_templates").select("id,name").eq("coach_id", currentUser.id).order("name");
 
   const [{ data: users, error: usersError }, { data: assignments, error: assignmentsError }, { data: coaches, error: coachesError }, { data: templates, error: templatesError }, { data: bodyweights, error: bodyweightsError }, { data: checkins, error: checkinsError }] = await Promise.all([
-    idsForLookup.length ? supabase.from("app_users").select("id,email,full_name,role").in("id", idsForLookup) : Promise.resolve({ data: [], error: null }),
+    idsForLookup.length
+      ? supabase.from("app_users").select("id,email,full_name,role,profile_photo_path").in("id", idsForLookup)
+      : Promise.resolve({ data: [], error: null }),
     (clients || []).length
       ? supabase
           .from("program_assignments")
@@ -104,6 +107,24 @@ export default async function ClientsPage() {
   if (intakesError && intakesError.code !== "42P01" && intakesError.code !== "PGRST205" && intakesError.code !== "PGRST204") throw intakesError;
 
   const userMap = new Map((users || []).map((user) => [user.id, user]));
+  const photoPaths = Array.from(new Set((users || []).map((u) => u.profile_photo_path).filter((p): p is string => Boolean(p))));
+  const profilePhotoByUserId = new Map<string, string | null>();
+  if (photoPaths.length > 0) {
+    try {
+      const admin = createAdminClient();
+      const { data: signedRows } = await admin.storage.from("profile-photos").createSignedUrls(photoPaths, 60 * 60);
+      const signedByPath = new Map((signedRows || []).map((row) => [row.path, row.signedUrl]));
+      for (const user of users || []) {
+        if (user.profile_photo_path) {
+          profilePhotoByUserId.set(user.id, signedByPath.get(user.profile_photo_path) || null);
+        }
+      }
+    } catch {
+      for (const user of users || []) {
+        profilePhotoByUserId.set(user.id, null);
+      }
+    }
+  }
   const assignedClientIds = new Set((assignments || []).map((assignment) => assignment.client_id));
   const assignmentStartByClientId = new Map<string, string | null>();
   for (const assignment of assignments || []) {
@@ -232,6 +253,7 @@ export default async function ClientsPage() {
       id: client.id,
       clientUserId: client.user_id,
       clientName: displayNameFromIdentity({ fullName: clientUser?.full_name, email: clientUser?.email, fallbackId: client.user_id }),
+      clientPhotoUrl: profilePhotoByUserId.get(client.user_id) || null,
       coachId: client.coach_id,
       coachName: coachUser ? displayNameFromIdentity({ fullName: coachUser.full_name, email: coachUser.email, fallbackId: coachUser.id }) : "Unassigned",
       goal: client.goal || "-",

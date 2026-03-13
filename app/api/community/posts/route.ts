@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { authorizeCommunityAccess } from "../_auth";
 import { enforceRateLimit } from "@/lib/security-controls";
 import { writeAuditLog } from "@/lib/audit-log";
+import { createAdminClient } from "@/lib/supabase-admin";
 
 type PostRow = {
   id: string;
@@ -79,11 +80,27 @@ export async function GET(request: Request) {
   );
 
   const { data: usersData, error: usersError } = authorIds.length
-    ? await supabase.from("app_users").select("id,full_name").in("id", authorIds)
+    ? await supabase.from("app_users").select("id,full_name,profile_photo_path").in("id", authorIds)
     : { data: [], error: null };
   if (usersError) return NextResponse.json({ error: usersError.message }, { status: 400 });
 
   const nameByUserId = new Map((usersData || []).map((user) => [user.id, publicName(user.full_name, user.id)]));
+  const photoByUserId = new Map<string, string | null>();
+  const photoPaths = Array.from(new Set((usersData || []).map((u) => u.profile_photo_path).filter((p): p is string => Boolean(p))));
+  if (photoPaths.length > 0) {
+    try {
+      const admin = createAdminClient();
+      const { data: signedRows } = await admin.storage.from("profile-photos").createSignedUrls(photoPaths, 60 * 60);
+      const signedByPath = new Map((signedRows || []).map((row) => [row.path, row.signedUrl]));
+      for (const user of usersData || []) {
+        if (user.profile_photo_path) {
+          photoByUserId.set(user.id, signedByPath.get(user.profile_photo_path) || null);
+        }
+      }
+    } catch {
+      for (const user of usersData || []) photoByUserId.set(user.id, null);
+    }
+  }
 
   const commentsByPost = new Map<string, Array<Record<string, unknown>>>();
   for (const comment of commentsData) {
@@ -98,6 +115,7 @@ export async function GET(request: Request) {
       updated_at: comment.updated_at,
       author_user_id: comment.author_user_id,
       author_name: nameByUserId.get(comment.author_user_id) || publicName(null, comment.author_user_id),
+      author_photo_url: photoByUserId.get(comment.author_user_id) || null,
       can_edit: auth.context.userId === comment.author_user_id || role === "admin" || role === "coach"
     });
     commentsByPost.set(comment.post_id, current);
@@ -111,6 +129,7 @@ export async function GET(request: Request) {
     updated_at: post.updated_at,
     author_user_id: post.author_user_id,
     author_name: nameByUserId.get(post.author_user_id) || publicName(null, post.author_user_id),
+    author_photo_url: photoByUserId.get(post.author_user_id) || null,
     can_edit: auth.context.userId === post.author_user_id || role === "admin" || role === "coach",
     comments: commentsByPost.get(post.id) || []
   }));

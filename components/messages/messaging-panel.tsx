@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { UserAvatar } from "@/components/user-avatar";
 
-type Peer = { id: string; name: string; email: string; role: "admin" | "coach" | "client" };
+type Peer = { id: string; name: string; email: string; role: "admin" | "coach" | "client"; photo_url?: string | null };
 type Message = {
   id: string;
   sender_id: string;
@@ -261,10 +262,15 @@ export function MessagingPanel({
             className={`w-full rounded-xl px-3 py-2.5 text-left text-sm ${peer.id === selectedPeerId ? "bg-blue-50" : "hover:bg-slate-100"}`}
             onClick={() => setSelectedPeerId(peer.id)}
           >
-            <p className="font-semibold text-slate-900">{peer.name}</p>
-            <p className="text-xs text-slate-500">
-              {peer.role} · {peer.email}
-            </p>
+            <div className="flex items-center gap-2">
+              <UserAvatar name={peer.name} photoUrl={peer.photo_url || null} size={30} />
+              <div>
+                <p className="font-semibold text-slate-900">{peer.name}</p>
+                <p className="text-xs text-slate-500">
+                  {peer.role} · {peer.email}
+                </p>
+              </div>
+            </div>
             {(unreadByPeer[peer.id] || 0) > 0 && (
               <span className="mt-1 inline-flex rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700">{unreadByPeer[peer.id]} new</span>
             )}

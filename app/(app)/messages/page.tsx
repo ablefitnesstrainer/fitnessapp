@@ -1,5 +1,6 @@
 import { MessagingPanel } from "@/components/messages/messaging-panel";
 import { createClient } from "@/lib/supabase-server";
+import { createAdminClient } from "@/lib/supabase-admin";
 import { displayNameFromIdentity } from "@/lib/display-name";
 import { getCurrentAppUser } from "@/services/auth-service";
 
@@ -12,17 +13,32 @@ export default async function MessagesPage({ searchParams }: { searchParams?: { 
 
   const peersQuery =
     currentUser.role === "client"
-      ? supabase.from("app_users").select("id,email,full_name,role").in("role", ["coach", "admin"])
-      : supabase.from("app_users").select("id,email,full_name,role").neq("id", currentUser.id);
+      ? supabase.from("app_users").select("id,email,full_name,role,profile_photo_path").in("role", ["coach", "admin"])
+      : supabase.from("app_users").select("id,email,full_name,role,profile_photo_path").neq("id", currentUser.id);
 
   const { data: peers, error: peersError } = await peersQuery;
   if (peersError) {
     throw peersError;
   }
 
+  const photoPaths = Array.from(new Set((peers || []).map((p) => p.profile_photo_path).filter((p): p is string => Boolean(p))));
+  const photoByPath = new Map<string, string>();
+  if (photoPaths.length > 0) {
+    try {
+      const admin = createAdminClient();
+      const { data: signedRows } = await admin.storage.from("profile-photos").createSignedUrls(photoPaths, 60 * 60);
+      for (const row of signedRows || []) {
+        if (row.path && row.signedUrl) photoByPath.set(row.path, row.signedUrl);
+      }
+    } catch {
+      // fail open with initials if signing fails
+    }
+  }
+
   const normalizedPeers = (peers || []).map((peer) => ({
     ...peer,
-    name: displayNameFromIdentity({ fullName: peer.full_name, email: peer.email, fallbackId: peer.id })
+    name: displayNameFromIdentity({ fullName: peer.full_name, email: peer.email, fallbackId: peer.id }),
+    photo_url: peer.profile_photo_path ? photoByPath.get(peer.profile_photo_path) || null : null
   }));
 
   const selectedPeer =

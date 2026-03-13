@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { UserAvatar } from "@/components/user-avatar";
 
 type RosterRow = {
   id: string;
   clientUserId: string;
   clientName: string;
+  clientPhotoUrl: string | null;
   coachId: string | null;
   coachName: string;
   goal: string;
@@ -280,7 +282,12 @@ export function RosterTable({
                   : null;
               return (
                 <tr key={row.id} className="border-b border-slate-100 text-slate-700 align-top">
-                  <td className="px-2 py-3 font-semibold text-slate-900">{row.clientName}</td>
+                  <td className="px-2 py-3 font-semibold text-slate-900">
+                    <div className="flex items-center gap-2">
+                      <UserAvatar name={row.clientName} photoUrl={row.clientPhotoUrl} size={30} />
+                      <span>{row.clientName}</span>
+                    </div>
+                  </td>
                   <td className="px-2 py-3">{coachNameById.get(selectedCoachId) || row.coachName}</td>
                   <td className="px-2 py-3">{row.goal}</td>
                   <td className="px-2 py-3">{row.equipment}</td>

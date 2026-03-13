@@ -1,12 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { UserAvatar } from "@/components/user-avatar";
 
 type FeedComment = {
   id: string;
   post_id: string;
   body: string;
   author_name: string;
+  author_photo_url?: string | null;
   created_at: string;
 };
 
@@ -14,6 +16,7 @@ type FeedPost = {
   id: string;
   body: string;
   author_name: string;
+  author_photo_url?: string | null;
   created_at: string;
   comments: FeedComment[];
 };
@@ -166,9 +169,12 @@ export function EncouragementBoard({ canModerate = false }: { canModerate?: bool
         {posts.map((post) => (
           <article key={post.id} className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-slate-900">{post.author_name}</p>
-                <p className="text-xs text-slate-500">{new Date(post.created_at).toLocaleString()}</p>
+              <div className="flex items-center gap-2">
+                <UserAvatar name={post.author_name} photoUrl={post.author_photo_url || null} size={30} />
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">{post.author_name}</p>
+                  <p className="text-xs text-slate-500">{new Date(post.created_at).toLocaleString()}</p>
+                </div>
               </div>
               <button className="text-xs font-semibold text-rose-600 hover:text-rose-700" onClick={() => void reportPost(post.id)} type="button">
                 Report
@@ -179,8 +185,13 @@ export function EncouragementBoard({ canModerate = false }: { canModerate?: bool
             <div className="mt-3 space-y-2 border-t border-slate-100 pt-2">
               {(post.comments || []).map((comment) => (
                 <div key={comment.id} className="rounded-lg bg-slate-50 px-2 py-1.5">
-                  <p className="text-xs font-semibold text-slate-700">{comment.author_name}</p>
-                  <p className="text-xs text-slate-600">{comment.body}</p>
+                  <div className="flex items-start gap-2">
+                    <UserAvatar name={comment.author_name} photoUrl={comment.author_photo_url || null} size={22} />
+                    <div>
+                      <p className="text-xs font-semibold text-slate-700">{comment.author_name}</p>
+                      <p className="text-xs text-slate-600">{comment.body}</p>
+                    </div>
+                  </div>
                 </div>
               ))}
 
