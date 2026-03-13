@@ -120,7 +120,8 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/register") ||
     pathname.startsWith("/forgot-password") ||
     pathname.startsWith("/reset-password") ||
-    pathname.startsWith("/auth/callback");
+    pathname.startsWith("/auth/callback") ||
+    pathname.startsWith("/auth/finish");
 
   if (!allowPublicSignup && pathname.startsWith("/register")) {
     const redirectUrl = request.nextUrl.clone();

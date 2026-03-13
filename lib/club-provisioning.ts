@@ -217,7 +217,7 @@ async function assignChallengeAndProgram(params: { challengeId: string; clientId
 async function generateMagicLink(email: string) {
   const admin = createAdminClient();
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
-  const redirectTo = appUrl ? `${appUrl}/auth/callback?next=/dashboard` : undefined;
+  const redirectTo = appUrl ? `${appUrl}/auth/finish?next=/dashboard` : undefined;
 
   const { data, error } = await admin.auth.admin.generateLink({
     type: "magiclink",

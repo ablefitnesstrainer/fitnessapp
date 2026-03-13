@@ -20,7 +20,7 @@ async function authorizeAdmin(supabase: ReturnType<typeof createClient>) {
 async function regenerateMagicLink(email: string) {
   const admin = createAdminClient();
   const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
-  const redirectTo = appUrl ? `${appUrl}/auth/callback?next=/dashboard` : undefined;
+  const redirectTo = appUrl ? `${appUrl}/auth/finish?next=/dashboard` : undefined;
   const { data, error } = await admin.auth.admin.generateLink({
     type: "magiclink",
     email,
