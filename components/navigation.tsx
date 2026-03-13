@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { BrandLogo } from "@/components/brand-logo";
 import type { Role } from "@/types/db";
 
@@ -230,6 +230,7 @@ const links: NavLink[] = [
 
 export function Navigation({ role, unreadMessages = 0 }: { role: Role; unreadMessages?: number }) {
   const pathname = usePathname();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const title = role === "client" ? "Client Portal" : role === "admin" ? "Admin Console" : "Coach Console";
   const subtitle =
     role === "client"
@@ -238,44 +239,128 @@ export function Navigation({ role, unreadMessages = 0 }: { role: Role; unreadMes
 
   const visibleLinks = links.filter((link) => !link.roles || link.roles.includes(role));
 
-  return (
-    <aside className="sticky top-0 hidden h-screen w-72 shrink-0 border-r border-slate-200/80 bg-white/85 p-5 backdrop-blur lg:block">
-      <div className="flex h-full flex-col">
-        <div className="mb-6 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 p-4 text-white shadow-lg shadow-blue-200">
-          <div className="flex items-center gap-3">
-            <BrandLogo size={42} className="border border-white/30" />
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-50">Able Fitness</p>
-              <h2 className="text-2xl font-bold">{title}</h2>
-            </div>
-          </div>
-          <p className="mt-1 text-sm text-blue-50">{subtitle}</p>
-        </div>
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
-        <nav className="flex-1 space-y-1.5 overflow-y-auto pb-4 pr-1">
-          {visibleLinks.map((link) => {
-            const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
-            return (
-              <Link
-                key={link.href}
-                href={link.href}
-                className={clsx(
-                  "flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition",
-                  active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                )}
-              >
-                {link.icon}
-                {link.label}
-                {link.href === "/messages" && unreadMessages > 0 && (
-                  <span className="ml-auto rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
-                    {unreadMessages > 99 ? "99+" : unreadMessages}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-    </aside>
+  useEffect(() => {
+    if (!isMobileMenuOpen) {
+      return;
+    }
+
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isMobileMenuOpen]);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setIsMobileMenuOpen((open) => !open)}
+        className="fixed left-4 top-4 z-50 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white/95 text-slate-700 shadow-sm backdrop-blur lg:hidden"
+        aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+        aria-expanded={isMobileMenuOpen}
+      >
+        <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
+          {isMobileMenuOpen ? (
+            <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          ) : (
+            <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          )}
+        </svg>
+      </button>
+
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-40 lg:hidden" role="dialog" aria-modal="true">
+          <button
+            type="button"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="absolute inset-0 bg-slate-900/45 backdrop-blur-[1px]"
+            aria-label="Close navigation menu"
+          />
+          <aside className="relative h-full w-[84%] max-w-sm border-r border-slate-200/80 bg-white p-5 shadow-2xl">
+            <div className="flex h-full flex-col">
+              <div className="mb-6 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 p-4 text-white shadow-lg shadow-blue-200">
+                <div className="flex items-center gap-3">
+                  <BrandLogo size={42} className="border border-white/30" />
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-50">Able Fitness</p>
+                    <h2 className="text-2xl font-bold">{title}</h2>
+                  </div>
+                </div>
+                <p className="mt-1 text-sm text-blue-50">{subtitle}</p>
+              </div>
+
+              <nav className="flex-1 space-y-1.5 overflow-y-auto pb-4 pr-1">
+                {visibleLinks.map((link) => {
+                  const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      className={clsx(
+                        "flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition",
+                        active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      )}
+                    >
+                      {link.icon}
+                      {link.label}
+                      {link.href === "/messages" && unreadMessages > 0 && (
+                        <span className="ml-auto rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                          {unreadMessages > 99 ? "99+" : unreadMessages}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 border-r border-slate-200/80 bg-white/85 p-5 backdrop-blur lg:block">
+        <div className="flex h-full flex-col">
+          <div className="mb-6 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 p-4 text-white shadow-lg shadow-blue-200">
+            <div className="flex items-center gap-3">
+              <BrandLogo size={42} className="border border-white/30" />
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-50">Able Fitness</p>
+                <h2 className="text-2xl font-bold">{title}</h2>
+              </div>
+            </div>
+            <p className="mt-1 text-sm text-blue-50">{subtitle}</p>
+          </div>
+
+          <nav className="flex-1 space-y-1.5 overflow-y-auto pb-4 pr-1">
+            {visibleLinks.map((link) => {
+              const active = pathname === link.href || pathname.startsWith(`${link.href}/`);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  className={clsx(
+                    "flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-semibold transition",
+                    active ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  )}
+                >
+                  {link.icon}
+                  {link.label}
+                  {link.href === "/messages" && unreadMessages > 0 && (
+                    <span className="ml-auto rounded-full bg-blue-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                      {unreadMessages > 99 ? "99+" : unreadMessages}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+        </div>
+      </aside>
+    </>
   );
 }
