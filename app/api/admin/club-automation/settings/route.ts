@@ -39,6 +39,11 @@ export async function PUT(request: Request) {
     welcomeEmailEnabled?: boolean;
     welcomeFromEmail?: string | null;
     welcomeSupportEmail?: string | null;
+    welcomeSubject?: string | null;
+    welcomeHeading?: string | null;
+    welcomeBodyNew?: string | null;
+    welcomeBodyExisting?: string | null;
+    welcomeButtonLabel?: string | null;
   };
 
   const nextSettings = {
@@ -46,7 +51,12 @@ export async function PUT(request: Request) {
     fallbackMode: body.fallbackMode === "none" ? "none" : "next_upcoming",
     welcomeEmailEnabled: Boolean(body.welcomeEmailEnabled),
     welcomeFromEmail: body.welcomeFromEmail?.trim() || null,
-    welcomeSupportEmail: body.welcomeSupportEmail?.trim() || null
+    welcomeSupportEmail: body.welcomeSupportEmail?.trim() || null,
+    welcomeSubject: body.welcomeSubject?.trim() || "Welcome to AbleFit Club",
+    welcomeHeading: body.welcomeHeading?.trim() || "AbleFit Club",
+    welcomeBodyNew: body.welcomeBodyNew?.trim() || "Your membership is active and your dashboard is ready.",
+    welcomeBodyExisting: body.welcomeBodyExisting?.trim() || "Your membership is active and your dashboard is ready.",
+    welcomeButtonLabel: body.welcomeButtonLabel?.trim() || "Open Your Portal"
   } as const;
 
   const { error } = await setClubAutomationSettings(nextSettings, auth.userId);

@@ -8,6 +8,11 @@ type ClubSettings = {
   welcomeEmailEnabled: boolean;
   welcomeFromEmail: string | null;
   welcomeSupportEmail: string | null;
+  welcomeSubject: string;
+  welcomeHeading: string;
+  welcomeBodyNew: string;
+  welcomeBodyExisting: string;
+  welcomeButtonLabel: string;
 };
 
 type ClubEvent = {
@@ -160,6 +165,51 @@ export function ClubAutomationPanel() {
               placeholder="support@yourdomain.com"
               value={settings.welcomeSupportEmail || ""}
               onChange={(e) => setSettings((prev) => (prev ? { ...prev, welcomeSupportEmail: e.target.value || null } : prev))}
+            />
+          </div>
+
+          <div>
+            <label className="label">Welcome email subject</label>
+            <input
+              className="input"
+              value={settings.welcomeSubject}
+              onChange={(e) => setSettings((prev) => (prev ? { ...prev, welcomeSubject: e.target.value } : prev))}
+            />
+          </div>
+
+          <div>
+            <label className="label">Welcome email heading</label>
+            <input
+              className="input"
+              value={settings.welcomeHeading}
+              onChange={(e) => setSettings((prev) => (prev ? { ...prev, welcomeHeading: e.target.value } : prev))}
+            />
+          </div>
+
+          <div>
+            <label className="label">CTA button label</label>
+            <input
+              className="input"
+              value={settings.welcomeButtonLabel}
+              onChange={(e) => setSettings((prev) => (prev ? { ...prev, welcomeButtonLabel: e.target.value } : prev))}
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="label">Body copy for new members</label>
+            <textarea
+              className="input min-h-[90px]"
+              value={settings.welcomeBodyNew}
+              onChange={(e) => setSettings((prev) => (prev ? { ...prev, welcomeBodyNew: e.target.value } : prev))}
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="label">Body copy for existing members</label>
+            <textarea
+              className="input min-h-[90px]"
+              value={settings.welcomeBodyExisting}
+              onChange={(e) => setSettings((prev) => (prev ? { ...prev, welcomeBodyExisting: e.target.value } : prev))}
             />
           </div>
         </div>
