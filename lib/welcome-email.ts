@@ -35,6 +35,12 @@ export async function sendClubWelcomeEmail(input: WelcomeEmailInput) {
     ? `Welcome back, ${escapeHtml(firstName)}.`
     : `Welcome, ${escapeHtml(firstName)}.`;
   const bodyCopy = input.existingUser ? settings.welcomeBodyExisting : settings.welcomeBodyNew;
+  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+  const loginUrl = appUrl ? `${appUrl}/login` : input.magicLink;
+  const forgotPasswordUrl = appUrl ? `${appUrl}/forgot-password` : "";
+  const passwordHelpLine = forgotPasswordUrl
+    ? `Want a password-based login too? Use <a href="${forgotPasswordUrl}" style="color:#2563eb;">Forgot password</a> after your first sign-in to set one.`
+    : "Want a password-based login too? Use Forgot password after your first sign-in to set one.";
 
   const html = `
     <div style="font-family:Arial,sans-serif;line-height:1.5;color:#0f172a;">
@@ -45,6 +51,9 @@ export async function sendClubWelcomeEmail(input: WelcomeEmailInput) {
       <p style="margin:18px 0;">
         <a href="${input.magicLink}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 14px;border-radius:8px;text-decoration:none;font-weight:600;">${escapeHtml(settings.welcomeButtonLabel || "Open Your Portal")}</a>
       </p>
+      <p><strong>No password is required for first login.</strong> The button above signs you in securely via magic link.</p>
+      <p>${passwordHelpLine}</p>
+      <p style="margin:10px 0 0 0;">Login page: <a href="${loginUrl}" style="color:#2563eb;">${escapeHtml(loginUrl)}</a></p>
       <p style="font-size:12px;color:#475569;">If you need help, contact ${escapeHtml(support)}.</p>
     </div>
   `;
@@ -55,6 +64,11 @@ export async function sendClubWelcomeEmail(input: WelcomeEmailInput) {
     `${bodyCopy || "Your membership is active and your dashboard is ready."}`,
     `${input.challengeName ? `Enrolled in: ${input.challengeName}` : "Membership is active."}`,
     `Open your portal: ${input.magicLink}`,
+    `No password is required for first login. The portal link signs you in securely.`,
+    forgotPasswordUrl
+      ? `If you want password login later, use Forgot password: ${forgotPasswordUrl}`
+      : `If you want password login later, use Forgot password from the login page.`,
+    `Login page: ${loginUrl}`,
     `Support: ${support}`
   ].join("\n\n");
 

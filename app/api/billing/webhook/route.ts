@@ -142,6 +142,7 @@ async function handleCheckoutSessionCompleted(event: Stripe.Event) {
     notes: provisioned.welcomeEmailStatus === "failed" ? "Provisioned, but welcome email failed" : "Provisioned and enrolled",
     payload: {
       email,
+      full_name: fullName,
       challenge_name: provisioned.challengeName,
       existing_user: provisioned.existingUser,
       welcome_email_status: provisioned.welcomeEmailStatus,

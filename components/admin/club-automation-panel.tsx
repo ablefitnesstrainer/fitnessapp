@@ -24,9 +24,16 @@ type ClubEvent = {
   retry_count: number;
   last_error: string | null;
   created_at: string;
+  app_user_id?: string | null;
+  client_id?: string | null;
   challenge_id: string | null;
   template_id: string | null;
 };
+
+function payloadString(payload: Record<string, unknown>, key: string) {
+  const value = payload[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
 
 function formatDate(value: string) {
   const parsed = new Date(value);
@@ -226,6 +233,17 @@ export function ClubAutomationPanel() {
           {events.length === 0 && <p className="text-sm text-slate-600">No events yet.</p>}
           {events.map((event) => (
             <div key={event.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              {(() => {
+                const fullName = payloadString(event.payload, "full_name");
+                const email = payloadString(event.payload, "email");
+                const member = fullName || email || event.app_user_id || "Unknown member";
+                return (
+                  <p className="mb-1 text-sm font-semibold text-slate-800">
+                    Member: <span className="font-bold">{member}</span>
+                    {fullName && email ? <span className="font-normal text-slate-600"> ({email})</span> : null}
+                  </p>
+                );
+              })()}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-slate-900">
                   {event.event_type} <span className="text-slate-500">• {event.status}</span>
