@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { env } from "@/lib/env";
-import { getMfaTrustDays, MFA_TRUSTED_UNTIL_COOKIE } from "@/lib/session-security";
+import { getMfaTrustDaysForRole, MFA_TRUSTED_UNTIL_COOKIE } from "@/lib/session-security";
 
 export async function POST(request: NextRequest) {
   if (!env.supabaseUrl || !env.supabaseAnonKey) {
@@ -27,7 +27,8 @@ export async function POST(request: NextRequest) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const trustDays = getMfaTrustDays();
+  const { data: appUser } = await supabase.from("app_users").select("role").eq("id", user.id).maybeSingle();
+  const trustDays = getMfaTrustDaysForRole(appUser?.role);
   const trustedUntil = new Date(Date.now() + trustDays * 24 * 60 * 60 * 1000).toISOString();
 
   response.cookies.set(MFA_TRUSTED_UNTIL_COOKIE, trustedUntil, {

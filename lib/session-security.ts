@@ -22,6 +22,15 @@ export function getMfaTrustDays() {
   return Math.floor(value);
 }
 
+export function getMfaTrustDaysForRole(role: string | null | undefined) {
+  if (role === "coach") {
+    const coachValue = Number(process.env.MFA_TRUST_DAYS_COACH || 30);
+    if (!Number.isFinite(coachValue) || coachValue <= 0) return 30;
+    return Math.floor(coachValue);
+  }
+  return getMfaTrustDays();
+}
+
 export function nowIso() {
   return new Date().toISOString();
 }
