@@ -21,14 +21,16 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const status = searchParams.get("status");
+  const todayIso = new Date().toISOString().slice(0, 10);
 
   if (role === "client") {
     const query = supabase
       .from("challenges")
-      .select("id,name,description,starts_on,ends_on,status,created_at,logo_storage_path")
+      .select("id,name,description,starts_on,ends_on,status,created_at,logo_storage_path,welcome_video_url,welcome_video_title")
       .order("starts_on", { ascending: false });
 
-    if (status) query.eq("status", status);
+    query.lte("starts_on", todayIso).gte("ends_on", todayIso).neq("status", "closed");
+    if (status && status !== "active") query.eq("status", status);
     const { data: challenges, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
@@ -65,14 +67,16 @@ export async function GET(request: Request) {
         status: entry.status,
         created_at: entry.created_at,
         enrolled: enrolledChallengeIds.has(entry.id),
-        logo_url: entry.logo_storage_path ? logoUrlByPath.get(entry.logo_storage_path) || null : null
+        logo_url: entry.logo_storage_path ? logoUrlByPath.get(entry.logo_storage_path) || null : null,
+        welcome_video_url: entry.welcome_video_url || null,
+        welcome_video_title: entry.welcome_video_title || null
       }))
     });
   }
 
   const query = supabase
     .from("challenges")
-    .select("id,name,description,starts_on,ends_on,status,created_by,created_at,logo_storage_path")
+    .select("id,name,description,starts_on,ends_on,status,created_by,created_at,logo_storage_path,welcome_video_url,welcome_video_title")
     .order("starts_on", { ascending: false });
   if (status) query.eq("status", status);
   if (role === "coach") query.eq("created_by", userId);
@@ -141,7 +145,9 @@ export async function GET(request: Request) {
       enrollment_count: enrollmentCountByChallenge.get(challenge.id) || 0,
       program_assignment: mappingByChallenge.get(challenge.id) || null,
       ranking_configs: configByChallenge.get(challenge.id) || [],
-      logo_url: challenge.logo_storage_path ? logoUrlByPath.get(challenge.logo_storage_path) || null : null
+      logo_url: challenge.logo_storage_path ? logoUrlByPath.get(challenge.logo_storage_path) || null : null,
+      welcome_video_url: challenge.welcome_video_url || null,
+      welcome_video_title: challenge.welcome_video_title || null
     }))
   });
 }
@@ -169,10 +175,18 @@ export async function POST(request: Request) {
     template_id?: string | null;
     start_on?: string | null;
     assignment_note?: string | null;
+    welcome_video_url?: string | null;
+    welcome_video_title?: string | null;
   };
 
   if (!body.name?.trim() || !body.starts_on || !body.ends_on) {
     return NextResponse.json({ error: "name, starts_on, and ends_on are required" }, { status: 400 });
+  }
+
+  const welcomeVideoUrl = (body.welcome_video_url || "").trim();
+  const welcomeVideoTitle = (body.welcome_video_title || "").trim();
+  if (welcomeVideoUrl && !/^https?:\/\//i.test(welcomeVideoUrl)) {
+    return NextResponse.json({ error: "Welcome video URL must start with http:// or https://" }, { status: 400 });
   }
 
   const { data: challenge, error: challengeError } = await supabase
@@ -183,7 +197,9 @@ export async function POST(request: Request) {
       starts_on: body.starts_on,
       ends_on: body.ends_on,
       status: body.status || "draft",
-      created_by: userId
+      created_by: userId,
+      welcome_video_url: welcomeVideoUrl || null,
+      welcome_video_title: welcomeVideoTitle || null
     })
     .select("*")
     .single();

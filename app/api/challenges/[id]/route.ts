@@ -40,6 +40,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     template_id?: string | null;
     start_on?: string | null;
     assignment_note?: string | null;
+    welcome_video_url?: string | null;
+    welcome_video_title?: string | null;
   };
 
   const updates: Record<string, unknown> = {};
@@ -48,6 +50,16 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (body.starts_on !== undefined) updates.starts_on = body.starts_on;
   if (body.ends_on !== undefined) updates.ends_on = body.ends_on;
   if (body.status !== undefined) updates.status = body.status;
+  if (body.welcome_video_url !== undefined) {
+    const url = (body.welcome_video_url || "").trim();
+    if (url && !/^https?:\/\//i.test(url)) {
+      return NextResponse.json({ error: "Welcome video URL must start with http:// or https://" }, { status: 400 });
+    }
+    updates.welcome_video_url = url || null;
+  }
+  if (body.welcome_video_title !== undefined) {
+    updates.welcome_video_title = (body.welcome_video_title || "").trim() || null;
+  }
 
   if (Object.keys(updates).length > 0) {
     const { error: updateError } = await supabase.from("challenges").update(updates).eq("id", params.id);
@@ -114,7 +126,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   const { data: challenge, error: challengeError } = await supabase
     .from("challenges")
-    .select("id,name,description,starts_on,ends_on,status,created_by,created_at,updated_at,logo_storage_path")
+    .select("id,name,description,starts_on,ends_on,status,created_by,created_at,updated_at,logo_storage_path,welcome_video_url,welcome_video_title")
     .eq("id", params.id)
     .single();
   if (challengeError) return NextResponse.json({ error: challengeError.message }, { status: 400 });

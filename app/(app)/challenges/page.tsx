@@ -27,7 +27,6 @@ export default async function ChallengesPage() {
     appUser.role === "admin" || appUser.role === "coach"
       ? await fetchTemplates(supabase, appUser.id, appUser.role)
       : [];
-  const contentSettings = appUser.role === "admin" || appUser.role === "coach" ? await fetchContentSettings() : { url: "", title: "Welcome to Able Fitness" };
 
   return (
     <ChallengeHub
@@ -35,20 +34,22 @@ export default async function ChallengesPage() {
       initialChallenges={challengesData || []}
       clients={clients}
       templates={templates}
-      initialWelcomeVideoUrl={contentSettings.url}
-      initialWelcomeVideoTitle={contentSettings.title}
     />
   );
 }
 
 async function fetchChallenges(supabase: ReturnType<typeof createClient>, userId: string, role: "admin" | "coach" | "client") {
   if (role === "client") {
+    const todayIso = new Date().toISOString().slice(0, 10);
     const { data: profile } = await supabase.from("clients").select("id").eq("user_id", userId).maybeSingle();
     if (!profile) return { data: [], error: null };
 
     const { data: challenges, error } = await supabase
       .from("challenges")
-      .select("id,name,description,starts_on,ends_on,status,logo_storage_path")
+      .select("id,name,description,starts_on,ends_on,status,logo_storage_path,welcome_video_url,welcome_video_title")
+      .lte("starts_on", todayIso)
+      .gte("ends_on", todayIso)
+      .neq("status", "closed")
       .order("starts_on", { ascending: false });
     if (error) return { data: null, error };
 
@@ -89,13 +90,13 @@ async function fetchChallenges(supabase: ReturnType<typeof createClient>, userId
       ? supabase
           .from("challenges")
           .select(
-            "id,name,description,starts_on,ends_on,status,created_by,logo_storage_path,challenge_enrollments(id),challenge_program_assignments(template_id,start_on,assignment_note),challenge_leaderboard_configs(ranking_slot,label,workouts_weight,checkins_weight,nutrition_weight,habits_weight,tie_breaker)"
+            "id,name,description,starts_on,ends_on,status,created_by,logo_storage_path,welcome_video_url,welcome_video_title,challenge_enrollments(id),challenge_program_assignments(template_id,start_on,assignment_note),challenge_leaderboard_configs(ranking_slot,label,workouts_weight,checkins_weight,nutrition_weight,habits_weight,tie_breaker)"
           )
           .eq("created_by", userId)
       : supabase
           .from("challenges")
           .select(
-            "id,name,description,starts_on,ends_on,status,created_by,logo_storage_path,challenge_enrollments(id),challenge_program_assignments(template_id,start_on,assignment_note),challenge_leaderboard_configs(ranking_slot,label,workouts_weight,checkins_weight,nutrition_weight,habits_weight,tie_breaker)"
+            "id,name,description,starts_on,ends_on,status,created_by,logo_storage_path,welcome_video_url,welcome_video_title,challenge_enrollments(id),challenge_program_assignments(template_id,start_on,assignment_note),challenge_leaderboard_configs(ranking_slot,label,workouts_weight,checkins_weight,nutrition_weight,habits_weight,tie_breaker)"
           );
 
   const result = await query.order("starts_on", { ascending: false });
@@ -121,6 +122,8 @@ async function fetchChallenges(supabase: ReturnType<typeof createClient>, userId
     ends_on: challenge.ends_on,
     status: challenge.status,
     logo_url: challenge.logo_storage_path ? logoUrlByPath.get(challenge.logo_storage_path) || null : null,
+    welcome_video_url: challenge.welcome_video_url || null,
+    welcome_video_title: challenge.welcome_video_title || null,
     enrollment_count: (challenge.challenge_enrollments || []).length,
     program_assignment: challenge.challenge_program_assignments?.[0] || null,
     ranking_configs: challenge.challenge_leaderboard_configs || []
@@ -167,21 +170,4 @@ async function fetchTemplates(supabase: ReturnType<typeof createClient>, userId:
   const { data, error } = await query;
   if (error) return [];
   return (data || []).map((template) => ({ id: template.id, name: template.name }));
-}
-
-async function fetchContentSettings() {
-  try {
-    const admin = createAdminClient();
-    const { data } = await admin
-      .from("security_settings")
-      .select("key,value")
-      .in("key", ["content:client_welcome_video_url", "content:client_welcome_video_title"]);
-    const byKey = new Map((data || []).map((item) => [item.key, item.value as Record<string, unknown>]));
-    return {
-      url: String(byKey.get("content:client_welcome_video_url")?.value || ""),
-      title: String(byKey.get("content:client_welcome_video_title")?.value || "Welcome to Able Fitness")
-    };
-  } catch {
-    return { url: "", title: "Welcome to Able Fitness" };
-  }
 }

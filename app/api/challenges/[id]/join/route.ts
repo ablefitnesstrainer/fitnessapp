@@ -14,12 +14,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   const { data: challenge, error: challengeError } = await supabase
     .from("challenges")
-    .select("id,status")
+    .select("id,status,starts_on,ends_on")
     .eq("id", params.id)
     .maybeSingle();
   if (challengeError) return NextResponse.json({ error: challengeError.message }, { status: 400 });
   if (!challenge) return NextResponse.json({ error: "Challenge not found" }, { status: 404 });
-  if (challenge.status !== "active") return NextResponse.json({ error: "Only active challenges can be joined" }, { status: 400 });
+  const todayIso = new Date().toISOString().slice(0, 10);
+  if (challenge.status === "closed") return NextResponse.json({ error: "This challenge has ended." }, { status: 400 });
+  if (challenge.starts_on > todayIso) return NextResponse.json({ error: "This challenge has not started yet." }, { status: 400 });
+  if (challenge.ends_on < todayIso) return NextResponse.json({ error: "This challenge has ended." }, { status: 400 });
 
   const { error } = await supabase
     .from("challenge_enrollments")

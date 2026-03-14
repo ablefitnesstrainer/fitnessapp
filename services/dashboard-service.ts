@@ -1,18 +1,18 @@
 import { createClient } from "@/lib/supabase-server";
-import { createAdminClient } from "@/lib/supabase-admin";
 import { displayNameFromIdentity } from "@/lib/display-name";
 import { getCurrentAppUser, getCurrentClientProfile } from "@/services/auth-service";
 
 export async function getDashboardData() {
   const supabase = createClient();
   const appUser = await getCurrentAppUser();
+  const todayIso = new Date().toISOString().slice(0, 10);
   const now = new Date();
   const nextMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
   const nextMonthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 2, 0));
   const nextMonthStartIso = nextMonthStart.toISOString().slice(0, 10);
   const nextMonthEndIso = nextMonthEnd.toISOString().slice(0, 10);
 
-  const [{ data: upcomingChallenge }, welcomeVideo] = await Promise.all([
+  const [{ data: upcomingChallenge }, { data: activeChallenge }] = await Promise.all([
     supabase
       .from("challenges")
       .select("id,name,description,starts_on,ends_on,status")
@@ -22,23 +22,23 @@ export async function getDashboardData() {
       .order("starts_on", { ascending: true })
       .limit(1)
       .maybeSingle(),
-    (async () => {
-      try {
-        const admin = createAdminClient();
-        const { data } = await admin
-          .from("security_settings")
-          .select("key,value")
-          .in("key", ["content:client_welcome_video_url", "content:client_welcome_video_title"]);
-        const byKey = new Map((data || []).map((row) => [row.key, row.value as Record<string, unknown>]));
-        return {
-          url: String(byKey.get("content:client_welcome_video_url")?.value || "").trim(),
-          title: String(byKey.get("content:client_welcome_video_title")?.value || "Welcome to Able Fitness").trim()
-        };
-      } catch {
-        return { url: "", title: "Welcome to Able Fitness" };
-      }
-    })()
+    supabase
+      .from("challenges")
+      .select("id,name,starts_on,ends_on,status,welcome_video_url,welcome_video_title")
+      .lte("starts_on", todayIso)
+      .gte("ends_on", todayIso)
+      .neq("status", "closed")
+      .order("starts_on", { ascending: false })
+      .limit(1)
+      .maybeSingle()
   ]);
+  const welcomeVideo =
+    activeChallenge?.welcome_video_url
+      ? {
+          url: String(activeChallenge.welcome_video_url).trim(),
+          title: String(activeChallenge.welcome_video_title || activeChallenge.name || "Welcome to Able Fitness").trim()
+        }
+      : { url: "", title: "Welcome to Able Fitness" };
 
   if (appUser.role === "client") {
     const client = await getCurrentClientProfile();
@@ -60,7 +60,7 @@ export async function getDashboardData() {
       workoutLogs: workoutLogsRes.data,
       mealLogs: mealLogsRes.data,
       checkins: checkinsRes.data,
-      upcomingChallenge: upcomingChallenge || null,
+      upcomingChallenge: null,
       welcomeVideo
     };
   }

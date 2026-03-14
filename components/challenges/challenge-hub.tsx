@@ -10,6 +10,8 @@ type Challenge = {
   name: string;
   description: string | null;
   logo_url?: string | null;
+  welcome_video_url?: string | null;
+  welcome_video_title?: string | null;
   starts_on: string;
   ends_on: string;
   status: "draft" | "active" | "closed";
@@ -51,26 +53,23 @@ export function ChallengeHub({
   role,
   initialChallenges,
   clients = [],
-  templates = [],
-  initialWelcomeVideoUrl = "",
-  initialWelcomeVideoTitle = "Welcome to Able Fitness"
+  templates = []
 }: {
   role: Role;
   initialChallenges: Challenge[];
   clients?: ClientOption[];
   templates?: TemplateOption[];
-  initialWelcomeVideoUrl?: string;
-  initialWelcomeVideoTitle?: string;
 }) {
   const [challenges, setChallenges] = useState(initialChallenges || []);
   const [status, setStatus] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const [logoFiles, setLogoFiles] = useState<Record<string, File | null>>({});
-  const [welcomeVideoUrl, setWelcomeVideoUrl] = useState(initialWelcomeVideoUrl);
-  const [welcomeVideoTitle, setWelcomeVideoTitle] = useState(initialWelcomeVideoTitle);
+  const [videoDrafts, setVideoDrafts] = useState<Record<string, { url: string; title: string }>>({});
 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [challengeWelcomeVideoUrl, setChallengeWelcomeVideoUrl] = useState("");
+  const [challengeWelcomeVideoTitle, setChallengeWelcomeVideoTitle] = useState("Welcome to Able Fitness");
   const [startsOn, setStartsOn] = useState(new Date().toISOString().slice(0, 10));
   const [endsOn, setEndsOn] = useState(new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString().slice(0, 10));
   const [templateId, setTemplateId] = useState(templates[0]?.id || "");
@@ -117,7 +116,9 @@ export function ChallengeHub({
         status: "draft",
         template_id: templateId || null,
         start_on: assignmentStartOn,
-        ranking_configs: rankingConfigs
+        ranking_configs: rankingConfigs,
+        welcome_video_url: challengeWelcomeVideoUrl || null,
+        welcome_video_title: challengeWelcomeVideoTitle || null
       })
     });
 
@@ -131,6 +132,8 @@ export function ChallengeHub({
     setStatus("Challenge created.");
     setName("");
     setDescription("");
+    setChallengeWelcomeVideoUrl("");
+    setChallengeWelcomeVideoTitle("Welcome to Able Fitness");
     setPending(false);
     await refreshChallenges();
   }
@@ -202,25 +205,27 @@ export function ChallengeHub({
     setPending(false);
   }
 
-  async function saveWelcomeVideo() {
+  async function saveChallengeVideo(challengeId: string) {
+    const draft = videoDrafts[challengeId] || { url: "", title: "Welcome to Able Fitness" };
     setPending(true);
     setStatus(null);
-    const res = await fetch("/api/content-settings", {
-      method: "PUT",
+    const res = await fetch(`/api/challenges/${challengeId}`, {
+      method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        welcome_video_url: welcomeVideoUrl,
-        welcome_video_title: welcomeVideoTitle
+        welcome_video_url: draft.url,
+        welcome_video_title: draft.title
       })
     });
     const payload = (await res.json().catch(() => null)) as { error?: string } | null;
     if (!res.ok) {
-      setStatus(payload?.error || "Failed to save welcome video settings.");
+      setStatus(payload?.error || "Failed to save challenge welcome video.");
       setPending(false);
       return;
     }
-    setStatus("Welcome video settings saved.");
+    setStatus("Challenge welcome video saved.");
     setPending(false);
+    await refreshChallenges();
   }
 
   async function joinChallenge(challengeId: string) {
@@ -316,6 +321,24 @@ export function ChallengeHub({
                 <span className="label">Program start date</span>
                 <input className="input" type="date" value={assignmentStartOn} onChange={(e) => setAssignmentStartOn(e.target.value)} />
               </label>
+              <label>
+                <span className="label">Challenge welcome video title</span>
+                <input
+                  className="input"
+                  value={challengeWelcomeVideoTitle}
+                  onChange={(e) => setChallengeWelcomeVideoTitle(e.target.value)}
+                  placeholder="Welcome to Able Fitness"
+                />
+              </label>
+              <label>
+                <span className="label">Challenge welcome video URL</span>
+                <input
+                  className="input"
+                  value={challengeWelcomeVideoUrl}
+                  onChange={(e) => setChallengeWelcomeVideoUrl(e.target.value)}
+                  placeholder="https://www.youtube.com/watch?v=..."
+                />
+              </label>
             </div>
 
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
@@ -344,34 +367,6 @@ export function ChallengeHub({
 
             <button className="btn-primary" type="button" disabled={pending} onClick={() => void createChallenge()}>
               {pending ? "Saving..." : "Step 3: Create Challenge"}
-            </button>
-          </div>
-
-          <div className="card space-y-3">
-            <h2 className="text-xl font-bold">Client Welcome Video</h2>
-            <p className="text-sm text-slate-600">Shown on the client dashboard.</p>
-            <div className="grid gap-3 md:grid-cols-2">
-              <label>
-                <span className="label">Video title</span>
-                <input
-                  className="input"
-                  value={welcomeVideoTitle}
-                  onChange={(e) => setWelcomeVideoTitle(e.target.value)}
-                  placeholder="Welcome to Able Fitness"
-                />
-              </label>
-              <label>
-                <span className="label">Video URL (YouTube recommended)</span>
-                <input
-                  className="input"
-                  value={welcomeVideoUrl}
-                  onChange={(e) => setWelcomeVideoUrl(e.target.value)}
-                  placeholder="https://www.youtube.com/watch?v=..."
-                />
-              </label>
-            </div>
-            <button className="btn-secondary" type="button" disabled={pending} onClick={() => void saveWelcomeVideo()}>
-              Save Welcome Video
             </button>
           </div>
 
@@ -471,6 +466,45 @@ export function ChallengeHub({
                       Upload Badge
                     </button>
                   </div>
+                  <div className="mt-3 grid gap-2 md:grid-cols-2">
+                    <label>
+                      <span className="label">Welcome video title</span>
+                      <input
+                        className="input"
+                        value={videoDrafts[challenge.id]?.title ?? challenge.welcome_video_title ?? "Welcome to Able Fitness"}
+                        onChange={(e) =>
+                          setVideoDrafts((prev) => ({
+                            ...prev,
+                            [challenge.id]: {
+                              url: prev[challenge.id]?.url ?? challenge.welcome_video_url ?? "",
+                              title: e.target.value
+                            }
+                          }))
+                        }
+                        placeholder="Welcome to Able Fitness"
+                      />
+                    </label>
+                    <label>
+                      <span className="label">Welcome video URL</span>
+                      <input
+                        className="input"
+                        value={videoDrafts[challenge.id]?.url ?? challenge.welcome_video_url ?? ""}
+                        onChange={(e) =>
+                          setVideoDrafts((prev) => ({
+                            ...prev,
+                            [challenge.id]: {
+                              url: e.target.value,
+                              title: prev[challenge.id]?.title ?? challenge.welcome_video_title ?? "Welcome to Able Fitness"
+                            }
+                          }))
+                        }
+                        placeholder="https://www.youtube.com/watch?v=..."
+                      />
+                    </label>
+                  </div>
+                  <button className="btn-secondary mt-2" type="button" disabled={pending} onClick={() => void saveChallengeVideo(challenge.id)}>
+                    Save Challenge Video
+                  </button>
                 </div>
               ))}
             </div>
@@ -501,7 +535,7 @@ export function ChallengeHub({
                 </div>
                 {challenge.enrolled ? (
                   <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">Enrolled</span>
-                ) : challenge.status === "active" ? (
+                ) : challenge.status !== "closed" ? (
                   <button className="btn-primary" type="button" disabled={pending} onClick={() => void joinChallenge(challenge.id)}>
                     Join Challenge
                   </button>
