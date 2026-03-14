@@ -262,7 +262,7 @@ export function ChallengeHub({
     }
 
     setLogoFiles((prev) => ({ ...prev, [challengeId]: null }));
-    setStatus("Challenge logo updated.");
+    setStatus("Challenge badge updated.");
     setPending(false);
     await refreshChallenges();
   }
@@ -281,6 +281,9 @@ export function ChallengeHub({
         <>
           <div className="card space-y-4">
             <h2 className="text-xl font-bold">Launch Workflow</h2>
+            <p className="text-sm text-slate-600">
+              Create the challenge first, then upload a badge image in the "Challenge Lifecycle & Badge Upload" section below.
+            </p>
             <div className="grid gap-3 md:grid-cols-2">
               <label>
                 <span className="label">Step 1: Challenge name</span>
@@ -416,7 +419,7 @@ export function ChallengeHub({
           </div>
 
           <div className="card space-y-3">
-            <h2 className="text-xl font-bold">Challenge Lifecycle</h2>
+            <h2 className="text-xl font-bold">Challenge Lifecycle & Badge Upload</h2>
             <div className="space-y-2">
               {challenges.length === 0 && <p className="text-sm text-slate-600">No challenges yet.</p>}
               {challenges.map((challenge) => (
@@ -452,6 +455,7 @@ export function ChallengeHub({
                     </div>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-medium text-slate-600">Badge image:</span>
                     <input
                       type="file"
                       accept="image/png,image/jpeg,image/webp"
@@ -464,7 +468,7 @@ export function ChallengeHub({
                       }
                     />
                     <button className="btn-secondary" type="button" disabled={pending} onClick={() => void uploadLogo(challenge.id)}>
-                      Upload Logo
+                      Upload Badge
                     </button>
                   </div>
                 </div>
